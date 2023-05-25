@@ -1,0 +1,49 @@
+name: "song_publish"
+description: write your description here
+keywords:
+  - overture
+  - song
+  - publish
+  - metadata
+  - validation
+tools:
+  - song:
+      description: |
+        SONG is a robust metadata and validation system used to quickly and reliably track genome metadata 
+        scattered across multiple cloud storage systems.
+      homepage: "https://www.overture.bio/products/song/"
+      documentation: "https://song-docs.readthedocs.io/en/develop/introduction.html"
+      tool_dev_url: "https://github.com/overture-stack/SONG"
+      doi: ""
+      licence: ["MIT"]
+
+input:
+  - meta:
+      type: map
+      description: |
+        Groovy Map containing sample information
+        e.g. [ id:'test', single_end:false ]
+  - analysis_id:
+      type: string
+      description: SONG metadata analysis ID
+
+output:
+  - meta:
+      type: map
+      description: |
+        Groovy Map containing sample information
+        e.g. [ id:'test', single_end:false ]
+  - analysis_id:
+      type: string
+      description: |
+        SONG metadata analysis ID for the uploaded files
+  - versions:
+      type: file
+      description: File containing software versions
+      pattern: "versions.yml"
+
+authors:
+  - "@lespalex"
+  - "@junjun-zhang"
+  - "@lindaxiang"
+  - "@edsu7"

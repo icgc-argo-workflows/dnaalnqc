@@ -1,0 +1,175 @@
+{
+    "name": "icgc-argo-workflows/dnaalnqc",
+    "homePage": "https://github.com/icgc-argo-workflows/dnaalnqc",
+    "repos": {
+        "https://github.com/icgc-argo-workflows/argo-modules.git": {
+            "modules": {
+                "icgc-argo-workflows": {
+                    "payload/qcmetrics": {
+                        "branch": "main",
+                        "git_sha": "e77dfd3f5a27c355ed42633a896d868a00f89ecf",
+                        "installed_by": [
+                            "modules"
+                        ]
+                    },
+                    "prep/sample": {
+                        "branch": "main",
+                        "git_sha": "06a2ac189b58d53ee8120ffc12aff485849c9a7e",
+                        "installed_by": [
+                            "stage_input"
+                        ]
+                    },
+                    "score/download": {
+                        "branch": "main",
+                        "git_sha": "f5e2d027a4f886a8702f5c4be825801513b578d0",
+                        "installed_by": [
+                            "song_score_download"
+                        ]
+                    },
+                    "score/upload": {
+                        "branch": "main",
+                        "git_sha": "f5e2d027a4f886a8702f5c4be825801513b578d0",
+                        "installed_by": [
+                            "song_score_upload"
+                        ]
+                    },
+                    "song/get": {
+                        "branch": "main",
+                        "git_sha": "f5e2d027a4f886a8702f5c4be825801513b578d0",
+                        "installed_by": [
+                            "song_score_download"
+                        ]
+                    },
+                    "song/manifest": {
+                        "branch": "main",
+                        "git_sha": "f5e2d027a4f886a8702f5c4be825801513b578d0",
+                        "installed_by": [
+                            "song_score_upload"
+                        ]
+                    },
+                    "song/publish": {
+                        "branch": "main",
+                        "git_sha": "f5e2d027a4f886a8702f5c4be825801513b578d0",
+                        "installed_by": [
+                            "song_score_upload"
+                        ]
+                    },
+                    "song/submit": {
+                        "branch": "main",
+                        "git_sha": "f5e2d027a4f886a8702f5c4be825801513b578d0",
+                        "installed_by": [
+                            "song_score_upload"
+                        ]
+                    }
+                }
+            },
+            "subworkflows": {
+                "icgc-argo-workflows": {
+                    "song_score_download": {
+                        "branch": "main",
+                        "git_sha": "92aa620385099e94401c22b8633cc55ed34ca10e",
+                        "installed_by": [
+                            "stage_input"
+                        ]
+                    },
+                    "song_score_upload": {
+                        "branch": "main",
+                        "git_sha": "92aa620385099e94401c22b8633cc55ed34ca10e",
+                        "installed_by": [
+                            "subworkflows"
+                        ]
+                    },
+                    "stage_input": {
+                        "branch": "main",
+                        "git_sha": "fd02dbcc7dc4e922dc60004b297ac11833154c2e",
+                        "installed_by": [
+                            "subworkflows"
+                        ]
+                    }
+                }
+            }
+        },
+        "https://github.com/nf-core/modules.git": {
+            "modules": {
+                "nf-core": {
+                    "custom/dumpsoftwareversions": {
+                        "branch": "master",
+                        "git_sha": "76cc4938c1f6ea5c7d83fed1eeffc146787f9543",
+                        "installed_by": [
+                            "modules"
+                        ]
+                    },
+                    "mosdepth": {
+                        "branch": "master",
+                        "git_sha": "5e34754d42cd2d5d248ca8673c0a53cdf5624905",
+                        "installed_by": [
+                            "modules"
+                        ]
+                    },
+                    "multiqc": {
+                        "branch": "master",
+                        "git_sha": "f2d63bd5b68925f98f572eed70993d205cc694b7",
+                        "installed_by": [
+                            "modules"
+                        ]
+                    },
+                    "picard/collecthsmetrics": {
+                        "branch": "master",
+                        "git_sha": "0ce3ab0ac301f160225b22254fa238478b4389f2",
+                        "installed_by": [
+                            "modules",
+                            "bam_qc_picard"
+                        ]
+                    },
+                    "picard/collectmultiplemetrics": {
+                        "branch": "master",
+                        "git_sha": "911696ea0b62df80e900ef244d7867d177971f73",
+                        "installed_by": [
+                            "bam_qc_picard"
+                        ]
+                    },
+                    "picard/collectwgsmetrics": {
+                        "branch": "master",
+                        "git_sha": "911696ea0b62df80e900ef244d7867d177971f73",
+                        "installed_by": [
+                            "modules",
+                            "bam_qc_picard"
+                        ]
+                    },
+                    "samtools/stats": {
+                        "branch": "master",
+                        "git_sha": "911696ea0b62df80e900ef244d7867d177971f73",
+                        "installed_by": [
+                            "modules"
+                        ]
+                    },
+                    "untarfiles": {
+                        "branch": "master",
+                        "git_sha": "5c460c5a4736974abde2843294f35307ee2b0e5e",
+                        "installed_by": [
+                            "modules"
+                        ]
+                    },
+                    "verifybamid/verifybamid2": {
+                        "branch": "master",
+                        "git_sha": "911696ea0b62df80e900ef244d7867d177971f73",
+                        "installed_by": [
+                            "modules"
+                        ]
+                    }
+                }
+            },
+            "subworkflows": {
+                "nf-core": {
+                    "bam_qc_picard": {
+                        "branch": "master",
+                        "git_sha": "0ce3ab0ac301f160225b22254fa238478b4389f2",
+                        "installed_by": [
+                            "subworkflows"
+                        ]
+                    }
+                }
+            }
+        }
+    }
+}

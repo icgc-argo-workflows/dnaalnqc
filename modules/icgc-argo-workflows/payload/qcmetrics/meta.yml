@@ -1,0 +1,58 @@
+name: "payload_qcmetrics"
+description: |
+  Generate Song payload to submit for ICGC-ARGO QC metrics files
+keywords:
+  - json
+  - song
+tools:
+  - "payload_qcmetrics":
+      description: "A simple wrapper written in `nextflow` for the payload generation tool to generate ARGO Song payloads containing QC metrics files."
+      licence: ["MIT"]
+
+input:
+  - meta:
+      type: map
+      description: |
+        Groovy Map containing sample information
+        e.g. [ id:'test', single_end:false ]
+
+  - files_to_upload:
+      type: file
+      description: QC metrics files
+
+  - metadata_analysis:
+      type: file
+      description: Song metadata in JSON format
+
+  - genome_annotation:
+      type: string
+      description: genome annotation name
+
+  - genome_build:
+      type: string
+      description: genome build name
+
+  - path pipeline_yml:
+      type: file
+      description: yml file collect from CUSTOM_DUMPSOFTWAREVERSIONS
+
+output:
+  - meta:
+      type: map
+      description: |
+        Groovy Map containing sample information
+        e.g. [ id:'test', single_end:false ]
+
+  - payload_files:
+      type: file
+      description: Generated payload and QC files with normalized names
+
+  - versions:
+      type: file
+      description: File containing software versions
+      pattern: "versions.yml"
+
+
+
+authors:
+  - "@lindaxiang"

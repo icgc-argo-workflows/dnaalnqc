@@ -1,0 +1,39 @@
+name: "prep_sample"
+description: Prepare the sample sheet for downloaded files and metadata.
+keywords:
+  - prepare sample sheet
+tools:
+  - "prep_sample":
+      description: |
+        A simple wrapper written in `Python` to generate the sample sheet for downloaded files and metadata. 
+        It also converts all input sequencing data into unaligned and lane level fastq files. 
+      licence: ["MIT"]
+
+input:  // input, make update as needed
+    tuple path(metadata_json), path(input)
+
+  output:  // output, make update as needed
+    path "out/*sample_sheet.csv", emit: sample_sheet_csv
+    path "versions.yml", emit: versions
+
+input:
+  - metadata_json:
+      type: file
+      description: SONG metadata in JSON format 
+  - input:
+      type: file
+      description: Downloaded files related to the SONG metadata JSON
+
+
+output:
+  - sample_sheet_csv:
+      type: file
+      description: sample sheet in CSV format
+  - versions:
+      type: file
+      description: File containing software versions
+      pattern: "versions.yml"
+
+authors:
+  - "@lindaxiang"
+

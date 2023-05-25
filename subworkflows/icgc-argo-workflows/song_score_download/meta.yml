@@ -1,0 +1,36 @@
+name: "song_score_download"
+description: Overture SONG/SCORE clients for downloading of files and metadata.
+keywords:
+  - overture
+  - song-client
+  - score-client
+  - download
+  - get
+  - metadata
+  - validation
+modules:
+  - song/get
+  - score/download
+input:
+  - study_id:
+      type: string
+      description: SONG metadata study ID
+  - analysis_id:
+      type: string
+      description: SONG metadata analysis ID
+output:
+  - analysis_json:
+      type: file
+      description: SONG metadata JSON file for downloaded files
+  - files:
+      type: file
+      description: List of downloaded files
+  - versions:
+      type: file
+      description: File containing software versions
+      pattern: "versions.yml"
+authors:
+  - "@lespalex"
+  - "@junjun-zhang"
+  - "@lindaxiang"
+  - "@edsu7"

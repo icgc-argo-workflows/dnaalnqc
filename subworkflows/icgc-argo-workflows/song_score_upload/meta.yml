@@ -1,0 +1,44 @@
+name: "song_score_upload"
+description: Overture SONG/SCORE clients for uploading of files and metadata.
+keywords:
+  - overture
+  - song-client
+  - score-client
+  - upload
+  - submit
+  - manifest
+  - publish
+  - metadata
+  - validation
+modules:
+  - song/submit
+  - song/manifest
+  - score/upload
+  - song/publish
+input:
+  - meta:
+      type: map
+      description: |
+        Groovy Map containing sample information
+        e.g. [ id:'test' ]
+  - payload:
+      type: file
+      description: SONG payload containing metadata for uploaded files
+  - files:
+      type: file
+      description: List of files to be uploaded
+
+output:
+  - analysis_id:
+      type: string
+      description: |
+        SONG metadata analysis ID for the uploaded files
+  - versions:
+      type: file
+      description: File containing software versions
+      pattern: "versions.yml"
+authors:
+  - "@lespalex"
+  - "@junjun-zhang"
+  - "@lindaxiang"
+  - "@edsu7"

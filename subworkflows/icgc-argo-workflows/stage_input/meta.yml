@@ -1,0 +1,41 @@
+name: "stage_input"
+description: Subworkflow to stage input files and generate sample sheet.
+keywords:
+  - overture
+  - song-client
+  - score-client
+  - stage input 
+  - prep sample sheet
+modules:
+  - song/get
+  - score/download
+  - prep_sample
+input:
+  - study_id:
+      type: string
+      description: SONG metadata study ID
+  - analysis_id:
+      type: string
+      description: SONG metadata analysis ID
+output:
+  - meta:
+      type: map
+      description: |
+        Groovy Map containing sample information
+        e.g. [ id:'test' ]
+  - analysis_meta:
+      type: file
+      description: SONG metadata JSON file for downloaded files
+  - sample_files:
+      type: file
+      description: channel with metadata and list of downloaded/converted files
+  - input_files:
+    type: file
+    description: List of downloaded files
+  - versions:
+      type: file
+      description: File containing software versions
+      pattern: "versions.yml"
+authors:
+  - "@lindaxiang"
+  

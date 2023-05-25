@@ -1,0 +1,43 @@
+name: "song_get"
+description: Get SONG metadata JSON file for a given study_id and analysis_id
+keywords:
+  - overture
+  - song
+  - get
+  - metadata
+  - validation
+tools:
+  - song:
+      description: |
+        SONG is a robust metadata and validation system used to quickly and reliably track genome metadata 
+        scattered across multiple cloud storage systems.
+      homepage: "https://www.overture.bio/products/song/"
+      documentation: "https://song-docs.readthedocs.io/en/develop/introduction.html"
+      tool_dev_url: "https://github.com/overture-stack/SONG"
+      doi: ""
+      licence: ["MIT"]
+
+input:
+  - study_id:
+      type: string
+      description: SONG metadata study ID
+  - analysis_id:
+      type: string
+      description: SONG metadata analysis ID
+
+output:
+  - json:
+      type: file
+      description: |
+        SONG metadata JSON file for the input study_id and analysis_id
+
+  - versions:
+      type: file
+      description: File containing software versions
+      pattern: "versions.yml"
+
+authors:
+  - "@lespalex"
+  - "@junjun-zhang"
+  - "@lindaxiang"
+  - "@edsu7"

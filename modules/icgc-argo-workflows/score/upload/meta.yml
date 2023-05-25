@@ -1,0 +1,52 @@
+name: "score_upload"
+description: Overture SCORE clients for uploading of files and metadata.
+keywords:
+  - overture
+  - score-client
+  - upload
+tools:
+  - "score":
+      description: |
+        Score facilitates the transfer and storage of your data seamlessly for cloud-based projects. 
+        File bundling, resumable downloads, and BAM/CRAM slicing make data transfer fast and smooth.
+      homepage: "https://www.overture.bio/products/score/"
+      documentation: "https://score-docs.readthedocs.io/en/develop/index.html"
+      tool_dev_url: "https://github.com/overture-stack/score"
+      doi: ""
+      licence: ["MIT"]
+
+input:
+  - meta:
+      type: map
+      description: |
+        Groovy Map containing sample information
+        e.g. [ id:'test', single_end:false ]
+  - analysis_id:
+      type: string
+      description: SONG metadata analysis ID 
+  - manifest:
+      type: file
+      description: manifest file for data uploading
+  - upload:
+      type: file
+      description: List of input files to upload
+
+output:
+  - meta:
+      type: map
+      description: |
+        Groovy Map containing sample information
+        e.g. [ id:'test', single_end:false ]
+  - analysis_id:
+      type: string
+      description: SONG metadata analysis ID of the uploaded files
+  - versions:
+      type: file
+      description: File containing software versions
+      pattern: "versions.yml"
+
+authors:
+  - "@lespalex"
+  - "@junjun-zhang"
+  - "@lindaxiang"
+  - "@edsu7"

@@ -1,0 +1,59 @@
+name: "song_manifest"
+description: | 
+  Generate manifest TSV file that contains information of filename, filepath and md5sum for data uploading.
+keywords:
+  - overture
+  - song
+  - manifest
+  - metadata
+  - validation
+tools:
+  - song:
+      description: |
+        SONG is a robust metadata and validation system used to quickly and reliably track genome metadata 
+        scattered across multiple cloud storage systems.
+      homepage: "https://www.overture.bio/products/song/"
+      documentation: "https://song-docs.readthedocs.io/en/develop/introduction.html"
+      tool_dev_url: "https://github.com/overture-stack/SONG"
+      doi: ""
+      licence: ["MIT"]
+
+input:
+  - meta:
+      type: map
+      description: |
+        Groovy Map containing sample information
+        e.g. [ id:'test', single_end:false ]
+  - analysis_id:
+      type: string
+      description: SONG metadata analysis ID
+  - payload:
+      type: file
+      description: JSON file containing the file metadata  
+  - upload:
+      type: file
+      description: List of files to be uploaded
+
+output:
+  - meta:
+      type: map
+      description: |
+        Groovy Map containing sample information
+        e.g. [ id:'test', single_end:false ]
+  - payload:
+      type: file
+      description: JSON file containing the file metadata  
+  - manifest:
+      type: file
+      description: Generated TSV manifest file
+      pattern: "out/manifest.txt"
+  - versions:
+      type: file
+      description: File containing software versions
+      pattern: "versions.yml"
+
+authors:
+  - "@lespalex"
+  - "@junjun-zhang"
+  - "@lindaxiang"
+  - "@edsu7"
