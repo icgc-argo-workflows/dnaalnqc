@@ -29,13 +29,15 @@ ch_multiqc_custom_methods_description = params.multiqc_methods_description ? fil
 //
 // SUBWORKFLOW: Consisting of a mix of local and nf-core/modules
 //
-include { INPUT_CHECK } from '../subworkflows/local/input_check'
+include { INPUT_CHECK                    } from '../subworkflows/local/input_check'
 include { STAGE_INPUT as STAGE_INPUT_ALN } from '../subworkflows/icgc-argo-workflows/stage_input/main'
-include { STAGE_INPUT as STAGE_INPUT_QC } from '../subworkflows/icgc-argo-workflows/stage_input/main'
-include { PAYLOAD_QCMETRICS } from '../modules/icgc-argo-workflows/payload/qcmetrics/main'
-include { SONG_SCORE_UPLOAD } from '../subworkflows/icgc-argo-workflows/song_score_upload/main'
-include { CRAM_QC_MOSDEPTH_SAMTOOLS   } from '../subworkflows/local/cram_qc_mosdepth_samtools/main'
-include { PICARD_COLLECTOXOGMETRICS     } from '../modules/local/picard/collectoxogmetrics/main'
+include { STAGE_INPUT as STAGE_INPUT_QC  } from '../subworkflows/icgc-argo-workflows/stage_input/main'
+include { PAYLOAD_QCMETRICS              } from '../modules/icgc-argo-workflows/payload/qcmetrics/main'
+include { SONG_SCORE_UPLOAD              } from '../subworkflows/icgc-argo-workflows/song_score_upload/main'
+include { CRAM_QC_MOSDEPTH_SAMTOOLS      } from '../subworkflows/local/cram_qc_mosdepth_samtools/main'
+include { CRAM_QC_GATK4_CONTAMINATION as CRAM_QC_CALCONT_PAIR   } from '../subworkflows/local/cram_qc_gatk4_contamination/main'
+include { CRAM_QC_GATK4_CONTAMINATION_TUMOUR_ONLY as CRAM_QC_CALCONT_TUMOUR_ONLY   } from '../subworkflows/local/cram_qc_gatk4_contamination_tumour_only/main'
+include { PICARD_COLLECTOXOGMETRICS      } from '../modules/local/picard/collectoxogmetrics/main'
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -47,11 +49,12 @@ include { PICARD_COLLECTOXOGMETRICS     } from '../modules/local/picard/collecto
 // MODULE: Installed directly from nf-core/modules
 //
 
-include { MULTIQC                     } from '../modules/nf-core/multiqc/main'
+include { MULTIQC as MULTIQC_T        } from '../modules/nf-core/multiqc/main'
+include { MULTIQC as MULTIQC_N        } from '../modules/nf-core/multiqc/main'
 include { CUSTOM_DUMPSOFTWAREVERSIONS } from '../modules/nf-core/custom/dumpsoftwareversions/main'
 include { BAM_QC_PICARD               } from '../subworkflows/nf-core/bam_qc_picard/main'
-include { VERIFYBAMID_VERIFYBAMID2 } from '../modules/nf-core/verifybamid/verifybamid2/main'
-include { UNTARFILES } from '../modules/nf-core/untarfiles/main'
+include { VERIFYBAMID_VERIFYBAMID2    } from '../modules/nf-core/verifybamid/verifybamid2/main'
+include { UNTARFILES                  } from '../modules/nf-core/untarfiles/main'
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -65,7 +68,8 @@ def multiqc_report = []
 workflow DNAALNQC {
 
     ch_versions = Channel.empty()
-    ch_reports = Channel.empty()
+    ch_reports_normal = Channel.empty()
+    ch_reports_tumour = Channel.empty()
 
     // Read in samplesheet, validate and stage input files
     if ( params.local_mode ) {
@@ -75,11 +79,15 @@ workflow DNAALNQC {
         ch_versions = ch_versions.mix(INPUT_CHECK.out.versions)
       } 
       else { exit 1, 'Input samplesheet must be specified for local mode!' }
-    } else if (params.study_id && params.analysis_id) {
-      ch_input = [params.study_id, params.analysis_id]
+    } else if (params.study_id && params.analysis_id_tumour) {
+      ch_input = Channel.of([params.study_id, params.analysis_id_tumour])
+
+      if (params.analysis_id_normal) {
+        ch_input = ch_input.concat(Channel.of([params.study_id, params.analysis_id_normal]))
+      }
       STAGE_INPUT_ALN(ch_input)
       ch_input_sample = STAGE_INPUT_ALN.out.sample_files
-      analysis_json = STAGE_INPUT_ALN.out.analysis_json
+      ch_meta_analysis = STAGE_INPUT_ALN.out.meta_analysis
       ch_versions = ch_versions.mix(STAGE_INPUT_ALN.out.versions)
 
       // pull qc metrics from other workflows if qc_analysis_ids are provided
@@ -106,18 +114,17 @@ workflow DNAALNQC {
         ch_versions = ch_versions.mix(UNTARFILES.out.versions)
 
       }
-    } else { exit 1, 'study_id & analysis_id must be specified for rdpc mode!' }
+    } else { exit 1, 'study_id & analysis_id_tumour must be specified for rdpc mode!' }
 
-
-
-
-    // Initialize all input file channels
+    // // Initialize all input file channels
     fasta       = Channel.fromPath(params.fasta).collect()
     fasta_fai   = Channel.fromPath(params.fasta_fai).collect()
     fasta_dict  = Channel.fromPath(params.fasta_dict).collect()
     bait_interval    = params.bait_interval   ? Channel.fromPath(params.bait_interval).collect() : []
     target_interval  = params.target_interval ? Channel.fromPath(params.target_interval).collect() : []
-    intervals_for_processing = [] 
+    intervals_for_processing = []
+    germline_resource      = params.germline_resource  ? Channel.fromPath(params.germline_resource).collect() : Channel.value([])
+    germline_resource_tbi  = params.germline_resource_tbi  ? Channel.fromPath(params.germline_resource_tbi).collect() : Channel.value([])
 
     //
     // MODULE: Run PICARD_COLLECTOXOGMETRICS
@@ -128,13 +135,23 @@ workflow DNAALNQC {
       fasta_fai.map{ it -> [[id:it[0].baseName], it] },           // channel: [ val(meta), fasta_fai ]
       intervals_for_processing
     )
+
     // Gather QC reports
-    ch_reports  = ch_reports.mix(PICARD_COLLECTOXOGMETRICS.out.metrics.collect{meta, report -> report})
+    PICARD_COLLECTOXOGMETRICS.out.metrics
+    .branch {
+      normal: it[0].status == 0
+      tumour: it[0].status == 1
+    }
+    .set{oxog_metrics}
+
+    ch_reports_normal  = ch_reports_normal.mix(oxog_metrics.normal.collect{meta, report -> report})
+    ch_reports_tumour  = ch_reports_tumour.mix(oxog_metrics.tumour.collect{meta, report -> report})
+    
     // Gather used softwares versions
     ch_versions = ch_versions.mix(PICARD_COLLECTOXOGMETRICS.out.versions)
 
     //
-    // SUBWORKFLOW: Run Samtools/stats, Mosdepth
+    // LOCAL SUBWORKFLOW: Run Samtools/stats, Mosdepth
     //
     CRAM_QC_MOSDEPTH_SAMTOOLS (
       ch_input_sample,
@@ -142,12 +159,83 @@ workflow DNAALNQC {
       fasta_fai,
       intervals_for_processing
     )
+
     // Gather QC reports
-    ch_reports  = ch_reports.mix(CRAM_QC_MOSDEPTH_SAMTOOLS.out.qc.collect{meta, report -> report})
+    CRAM_QC_MOSDEPTH_SAMTOOLS.out.qc
+    .branch {
+      normal: it[0].status == 0
+      tumour: it[0].status == 1
+    }
+    .set {mosdepth_samtools_metrics}
+
+    ch_reports_normal  = ch_reports_normal.mix(mosdepth_samtools_metrics.normal.collect{meta, report -> report})
+    ch_reports_tumour  = ch_reports_tumour.mix(mosdepth_samtools_metrics.tumour.collect{meta, report -> report})
+    
     // Gather used softwares versions
     ch_versions = ch_versions.mix(CRAM_QC_MOSDEPTH_SAMTOOLS.out.versions)
 
+    //
+    // LOCAL SUBWORKFLOW: Run GATK4_CALCULATECONTAMINATION, GATK4_GATHERPILEUPSUMMARIES, GATK4_GETPILEUPSUMMARIES
+    // Logic to separate normal, tumour samples
+    ch_input_sample_branch= ch_input_sample.branch {
+      normal: it[0].status == 0
+      tumour: it[0].status == 1
+    }
+    // Normal samples
+    cram_normal = ch_input_sample_branch.normal.map{ meta, cram, crai -> [ meta.patient, meta, cram, crai ]}
 
+    // Tumour samples
+    cram_tumour = ch_input_sample_branch.tumour.map{ meta, cram, crai -> [ meta.patient, meta, cram, crai ]}
+    
+    // Tumour only samples
+    // 1. Group together all tumour samples by patient ID [ patient1, [ meta1, meta2 ], [ cram1, crai1, cram2, crai2 ] ]
+    cram_tumour_grouped = cram_tumour.groupTuple()
+    
+    // 2. Join with normal samples, in each channel there is one key per patient now. 
+    // Patients without matched normal end up with: [ patient1, [ meta1, meta2 ], [ cram1, crai1, cram2, crai2 ], null ]
+    cram_tumour_joined = cram_tumour_grouped.join(cram_normal, failOnDuplicate: true, remainder: true)
+    
+    // 3. Filter out entries with last entry null
+    cram_tumour_joined_filtered = cram_tumour_joined.filter{ it ->  !(it.last()) }
+    
+    // 4. Transpose [ patient1, [ meta1, meta2 ], [ cram1, crai1, cram2, crai2 ] ] back to [ patient1, meta1, [ cram1, crai1 ], null ] [ patient1, meta2, [ cram2, crai2 ], null ]
+    // and remove patient ID field & null value for further processing [ meta1, [ cram1, crai1 ] ] [ meta2, [ cram2, crai2 ] ]
+    cram_tumor_only = cram_tumour_joined_filtered.transpose().map{ it -> [it[1], it[2], it[3]] }
+
+    // Tumour - normal pairs
+    // Use cross to combine normal with all tumor samples, i.e. multi tumor samples from recurrences
+    cram_pair = cram_normal.cross(cram_tumour)
+    .map { normal, tumour  ->
+        def meta = [:]
+        meta.id = "${tumour[1].sample}_vs_${normal[1].sample}".toString()
+        meta.normal_id  = normal[1].sample
+        meta.patient    = normal[0]
+        meta.sex        = normal[1].sex
+        meta.tumour_id   = tumour[1].sample
+
+        tuple([ meta, [ normal[2], tumour[2] ], [ normal[3], tumour[3] ] ])
+    }
+
+    CRAM_QC_CALCONT_PAIR (
+      cram_pair,
+      fasta.map{ it -> [ [ id:'fasta' ], it ] }, // Remap channel to match module/subworkflow
+      fasta_fai.map{ it -> [ [ id:'fasta_fai' ], it ] }, // Remap channel to match module/subworkflow
+      fasta_dict.map{ it -> [ [ id:'fasta_dict' ], it ] },
+      germline_resource,
+      germline_resource_tbi,
+      Channel.of([[],0]) 
+    )
+
+    CRAM_QC_CALCONT_TUMOUR_ONLY (
+      cram_tumor_only,
+      fasta.map{ it -> [ [ id:'fasta' ], it ] }, // Remap channel to match module/subworkflow
+      fasta_fai.map{ it -> [ [ id:'fasta_fai' ], it ] }, // Remap channel to match module/subworkflow
+      fasta_dict.map{ it -> [ [ id:'fasta_dict' ], it ] },
+      germline_resource,
+      germline_resource_tbi,
+      Channel.of([[],0]) 
+    )
+    
     //
     // SUBWORKFLOW: Run BAM_QC_PICARD including PICARD_COLLECTHSMETRICS (targeted), PICARD_COLLECTWGSMETRICS (WGS)
     // 
@@ -164,35 +252,73 @@ workflow DNAALNQC {
       fasta_fai.map{ it -> [[id:it[0].baseName], it] },           // channel: [ val(meta), fasta_fai ]
       fasta_dict.map{ it -> [[id:it[0].baseName], it] }           // channel: [ val(meta), fasta_dict ]
     )
+
     // Gather QC reports
-    ch_reports  = ch_reports.mix(BAM_QC_PICARD.out.coverage_metrics.collect{meta, report -> report})
-    ch_reports  = ch_reports.mix(BAM_QC_PICARD.out.multiple_metrics.collect{meta, report -> report})
+    BAM_QC_PICARD.out.coverage_metrics
+    .branch {
+      normal: it[0].status == 0
+      tumour: it[0].status == 1
+    }
+    .set {coverage_metrics}
+
+    BAM_QC_PICARD.out.multiple_metrics
+    .branch {
+      normal: it[0].status == 0
+      tumour: it[0].status == 1
+    }
+    .set {multiple_metrics}
+
+    ch_reports_normal  = ch_reports_normal.mix(coverage_metrics.normal.collect{meta, report -> report})
+    ch_reports_normal  = ch_reports_normal.mix(multiple_metrics.normal.collect{meta, report -> report})
+    ch_reports_tumour  = ch_reports_tumour.mix(coverage_metrics.tumour.collect{meta, report -> report})
+    ch_reports_tumour  = ch_reports_tumour.mix(multiple_metrics.tumour.collect{meta, report -> report})
+
     // Gather used softwares versions
     ch_versions = ch_versions.mix(BAM_QC_PICARD.out.versions)
-
+  
     //
     // MODULE: MultiQC
     //
-    ch_multiqc_files = Channel.empty()
-    ch_multiqc_files = ch_multiqc_files.mix(ch_reports.collect().ifEmpty([]))
+    ch_multiqc_tumour = Channel.empty()
+    ch_multiqc_tumour = ch_multiqc_tumour.mix(ch_reports_tumour.collect().ifEmpty([]))
+    ch_multiqc_normal = Channel.empty()
+    ch_multiqc_normal = ch_multiqc_normal.mix(ch_reports_normal.collect().ifEmpty([]))
+    ch_multiqc_normal.collect().view()
 
-    MULTIQC (
-        ch_multiqc_files.collect(),
+    MULTIQC_T (
+        ch_multiqc_tumour.collect(),
         ch_multiqc_config.toList(),
         ch_multiqc_custom_config.toList(),
         ch_multiqc_logo.toList()
     )
-    ch_versions = ch_versions.mix(MULTIQC.out.versions)
+    ch_versions = ch_versions.mix(MULTIQC_T.out.versions)
 
+    MULTIQC_N (
+        ch_multiqc_normal.collect(),
+        ch_multiqc_config.toList(),
+        ch_multiqc_custom_config.toList(),
+        ch_multiqc_logo.toList()
+    )
+    ch_versions = ch_versions.mix(MULTIQC_N.out.versions)
+
+    //
     // Match the QC files with the metadata info
-    ch_input_sample
-    .map { meta, cram, crai -> meta }
-    .set{ ch_meta }
+    //
+    ch_meta_analysis
+    .branch {
+      normal: it[0].status == 0
+      tumour: it[0].status == 1
+    }.set {ch_meta_analysis_status}
 
-    ch_meta.combine(ch_multiqc_files.collect().concat(MULTIQC.out.report, MULTIQC.out.data).collect().toList())
-    .combine(analysis_json)
-    .set {ch_metadata_upload}
+    ch_meta_analysis_status.normal
+    .combine(ch_multiqc_normal.collect().concat(MULTIQC_N.out.report, MULTIQC_N.out.data).collect().toList())
+    .set {ch_metadata_upload_normal}
 
+    ch_meta_analysis_status.tumour
+    .combine(ch_multiqc_tumour.collect().concat(MULTIQC_T.out.report, MULTIQC_T.out.data).collect().toList())
+    .set {ch_metadata_upload_tumour}
+
+    ch_metadata_upload = ch_metadata_upload_normal.concat(ch_metadata_upload_tumour)
 
     // Collect Software Versions
     CUSTOM_DUMPSOFTWAREVERSIONS (ch_versions.unique{ it.text }.collectFile(name: 'collated_versions.yml'))    
@@ -201,9 +327,10 @@ workflow DNAALNQC {
     if (!params.local_mode) {
       // generate payload
       PAYLOAD_QCMETRICS(
-        ch_metadata_upload, '', '', CUSTOM_DUMPSOFTWAREVERSIONS.out.yml.collect()) 
+        ch_metadata_upload, '', '', CUSTOM_DUMPSOFTWAREVERSIONS.out.yml.collect()
+      ) 
 
-      //SONG_SCORE_UPLOAD(PAYLOAD_QCMETRICS.out.payload_files)
+    // //SONG_SCORE_UPLOAD(PAYLOAD_QCMETRICS.out.payload_files)
     }
 }
 

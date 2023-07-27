@@ -42,7 +42,7 @@ workflow_process_map = {
     'DNA Alignment QC': 'post_aln'
 }
 
-tool_list = ['fastqc', 'cutadapt', 'multiqc', 'CollectMultipleMetrics', 'CollectWgsMetrics', 'CollectHsMetrics', 'stats']
+tool_list = ['fastqc', 'cutadapt', 'multiqc', 'CollectMultipleMetrics', 'CollectWgsMetrics', 'CollectHsMetrics', 'stats', 'mosdepth', 'CollectOxoGMetrics']
 
 def calculate_size(file_path):
     return os.stat(file_path).st_size
@@ -102,12 +102,27 @@ def get_files_info(file_to_upload, date_str, analysis_dict, process_indicator):
         file_info['info'].update({'analysis_tools': ['Picard/CollectHsMetrics']})
         file_info['info'].update({'description': 'Picard tool to collect hybrid-selection (HS) metrics for targeted sequencing experiments.'})
 
+    elif re.match(r'.+?CollectOxoGMetrics\.tgz$', file_to_upload):
+        file_type = 'CollectOxoGMetrics'
+        file_info.update({'dataType': 'Sequencing QC'})
+        file_info['info']['data_subtypes'] = ['Sample Metrics']
+        file_info['info'].update({'analysis_tools': ['Picard/CollectOxoGMetrics']})
+        file_info['info'].update({'description': 'Picard tool to collects metrics quantifying the error rate resulting from oxidative artifacts.'})
+
     elif re.match(r'.+?stats\.tgz$', file_to_upload):
         file_type = 'samtools_stats'
         file_info.update({'dataType': 'Sequencing QC'})
         file_info['info']['data_subtypes'] = ['Sample Metrics']
         file_info['info'].update({'analysis_tools': ['Samtools/Stats']})
         file_info['info'].update({'description': 'Samtools to collect comprehensive statistics from alignment file.'})
+
+    elif re.match(r'.+?mosdepth\.tgz$', file_to_upload):
+        file_type = 'mosdepth'
+        file_info.update({'dataType': 'Sequencing QC'})
+        file_info['info']['data_subtypes'] = ['Sample Metrics']
+        file_info['info'].update({'analysis_tools': ['Mosdepth']})
+        file_info['info'].update({'description': 'Mosdepth performs fast BAM/CRAM depth calculation for WGS, exome, or targeted sequencing.'})
+
 
     elif re.match(r'.+?multiqc\.tgz$', file_to_upload):
         file_type = 'multiqc'
