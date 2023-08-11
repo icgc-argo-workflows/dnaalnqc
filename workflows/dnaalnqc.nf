@@ -39,6 +39,9 @@ include { CRAM_QC_GATK4_CONTAMINATION as CRAM_QC_CALCONT_PAIR   } from '../subwo
 include { CRAM_QC_GATK4_CONTAMINATION_TUMOUR_ONLY as CRAM_QC_CALCONT_TUMOUR_ONLY   } from '../subworkflows/local/cram_qc_gatk4_contamination_tumour_only/main'
 include { PICARD_COLLECTOXOGMETRICS      } from '../modules/local/picard/collectoxogmetrics/main'
 
+// Build intervals if needed
+include { PREPARE_INTERVALS              } from '../subworkflows/local/prepare_intervals/main'
+
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     IMPORT NF-CORE MODULES/SUBWORKFLOWS
@@ -122,9 +125,29 @@ workflow DNAALNQC {
     fasta_dict  = Channel.fromPath(params.fasta_dict).collect()
     bait_interval    = params.bait_interval   ? Channel.fromPath(params.bait_interval).collect() : []
     target_interval  = params.target_interval ? Channel.fromPath(params.target_interval).collect() : []
-    intervals_for_processing = []
     germline_resource      = params.germline_resource  ? Channel.fromPath(params.germline_resource).collect() : Channel.value([])
     germline_resource_tbi  = params.germline_resource_tbi  ? Channel.fromPath(params.germline_resource_tbi).collect() : Channel.value([])
+
+    // Build intervals if needed
+    PREPARE_INTERVALS(fasta_fai, params.intervals, params.no_intervals)
+
+    // Intervals for speed up preprocessing/variant calling by spread/gather
+    // [interval.bed] all intervals in one file
+    intervals_bed_combined             = params.no_intervals ? Channel.value([])      : PREPARE_INTERVALS.out.intervals_bed_combined
+    intervals_bed_gz_tbi_combined      = params.no_intervals ? Channel.value([])      : PREPARE_INTERVALS.out.intervals_bed_gz_tbi_combined
+
+    intervals            = PREPARE_INTERVALS.out.intervals_bed        // [ interval, num_intervals ] multiple interval.bed files, divided by useful intervals for scatter/gather
+    intervals_bed_gz_tbi = PREPARE_INTERVALS.out.intervals_bed_gz_tbi // [ interval_bed, tbi, num_intervals ] multiple interval.bed.gz/.tbi files, divided by useful intervals for scatter/gather
+
+    intervals_and_num_intervals = intervals.map{ interval, num_intervals ->
+        if ( num_intervals < 1 ) [ [], num_intervals ]
+        else [ interval, num_intervals ]
+    }
+
+    intervals_bed_gz_tbi_and_num_intervals = intervals_bed_gz_tbi.map{ intervals, num_intervals ->
+        if ( num_intervals < 1 ) [ [], [], num_intervals ]
+        else [ intervals[0], intervals[1], num_intervals ]
+    }
 
     //
     // MODULE: Run PICARD_COLLECTOXOGMETRICS
@@ -133,7 +156,8 @@ workflow DNAALNQC {
       ch_input_sample,
       fasta.map{ it -> [[id:it[0].baseName], it] },               // channel: [ val(meta), fasta ]
       fasta_fai.map{ it -> [[id:it[0].baseName], it] },           // channel: [ val(meta), fasta_fai ]
-      intervals_for_processing
+      fasta_dict.map{ it -> [[id:it[0].baseName], it] },           // channel: [ val(meta), fasta_dict ]
+      intervals_bed_combined
     )
 
     // Gather QC reports
@@ -157,7 +181,7 @@ workflow DNAALNQC {
       ch_input_sample,
       fasta,
       fasta_fai,
-      intervals_for_processing
+      intervals_bed_combined
     )
 
     // Gather QC reports
@@ -223,7 +247,7 @@ workflow DNAALNQC {
       fasta_dict.map{ it -> [ [ id:'fasta_dict' ], it ] },
       germline_resource,
       germline_resource_tbi,
-      Channel.of([[],0]) 
+      intervals_and_num_intervals
     )
 
     CRAM_QC_CALCONT_TUMOUR_ONLY (
@@ -233,7 +257,7 @@ workflow DNAALNQC {
       fasta_dict.map{ it -> [ [ id:'fasta_dict' ], it ] },
       germline_resource,
       germline_resource_tbi,
-      Channel.of([[],0]) 
+      intervals_and_num_intervals 
     )
     
     //
@@ -283,7 +307,7 @@ workflow DNAALNQC {
     ch_multiqc_tumour = ch_multiqc_tumour.mix(ch_reports_tumour.collect().ifEmpty([]))
     ch_multiqc_normal = Channel.empty()
     ch_multiqc_normal = ch_multiqc_normal.mix(ch_reports_normal.collect().ifEmpty([]))
-    ch_multiqc_normal.collect().view()
+    ch_multiqc_normal.collect()
 
     MULTIQC_T (
         ch_multiqc_tumour.collect(),

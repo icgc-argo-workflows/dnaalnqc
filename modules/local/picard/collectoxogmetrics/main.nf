@@ -11,7 +11,8 @@ process PICARD_COLLECTOXOGMETRICS {
     tuple val(meta) , path(bam), path(bai)
     tuple val(meta2), path(fasta)
     tuple val(meta3), path(fai)
-    path  intervallist
+    tuple val(meta4), path(dict)
+    path  intervals
     
 
     output:
@@ -25,22 +26,31 @@ process PICARD_COLLECTOXOGMETRICS {
     def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
     def reference = fasta ? "--REFERENCE_SEQUENCE ${fasta}" : ""
-    def interval  = intervallist ? "--INTERVALS ${intervallist}" : ''
     def avail_mem = 3072
     if (!task.memory) {
         log.info '[Picard CollectOxoGMetrics] Available memory not known - defaulting to 3GB. Specify process memory requirements to change this.'
     } else {
         avail_mem = (task.memory.mega*0.8).intValue()
     }
+
+    def interval_list = intervals
+    def intervallist_cmd = ""
+    if (intervals =~ /.(bed|bed.gz)$/){
+        interval_list = intervals.toString().replaceAll(/.(bed|bed.gz)$/, ".interval_list")
+        intervallist_cmd = "picard -Xmx${avail_mem}M  BedToIntervalList --INPUT ${intervals} --OUTPUT ${interval_list} --SEQUENCE_DICTIONARY ${dict} --TMP_DIR ."
+    }
+
     """
+    $intervallist_cmd
+
     picard \\
         -Xmx${avail_mem}M \\
         CollectOxoGMetrics \\
         $args \\
         --INPUT $bam \\
         --OUTPUT ${prefix}.CollectOxoGMetrics.oxog_metrics \\
-        $reference
-        $interval
+        $reference \\
+        --INTERVALS $interval_list
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

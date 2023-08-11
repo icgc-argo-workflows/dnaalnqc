@@ -90,6 +90,11 @@
                         "git_sha": "2df2a11d5b12f2a73bca74f103691bc35d83c5fd",
                         "installed_by": ["modules"]
                     },
+                    "gatk4/intervallisttobed": {
+                        "branch": "master",
+                        "git_sha": "911696ea0b62df80e900ef244d7867d177971f73",
+                        "installed_by": ["modules"]
+                    },
                     "mosdepth": {
                         "branch": "master",
                         "git_sha": "5e34754d42cd2d5d248ca8673c0a53cdf5624905",
@@ -98,6 +103,11 @@
                     "multiqc": {
                         "branch": "master",
                         "git_sha": "f2d63bd5b68925f98f572eed70993d205cc694b7",
+                        "installed_by": ["modules"]
+                    },
+                    "picard/bedtointervallist": {
+                        "branch": "master",
+                        "git_sha": "911696ea0b62df80e900ef244d7867d177971f73",
                         "installed_by": ["modules"]
                     },
                     "picard/collecthsmetrics": {
@@ -118,6 +128,11 @@
                     "samtools/stats": {
                         "branch": "master",
                         "git_sha": "911696ea0b62df80e900ef244d7867d177971f73",
+                        "installed_by": ["modules"]
+                    },
+                    "tabix/bgziptabix": {
+                        "branch": "master",
+                        "git_sha": "591b71642820933dcb3c954c934b397bd00d8e5e",
                         "installed_by": ["modules"]
                     },
                     "untarfiles": {

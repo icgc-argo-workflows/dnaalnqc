@@ -60,12 +60,12 @@ workflow CRAM_QC_GATK4_CONTAMINATION {
     }
 
     // Only when using intervals
-    pileup_table_normal_to_merge = pileup_table_normal_branch.intervals.map{ meta, table -> [ groupKey(meta, meta.num_intervals), table ] }.groupTuple()
-    pileup_table_tumour_to_merge = pileup_table_tumour_branch.intervals.map{ meta, table -> [ groupKey(meta, meta.num_intervals), table ] }.groupTuple()
+    pileup_table_normal_to_merge = pileup_table_normal_branch.intervals.map{ meta, table -> [ groupKey(meta, meta.num_intervals), table ] }.groupTuple().view()
+    pileup_table_tumour_to_merge = pileup_table_tumour_branch.intervals.map{ meta, table -> [ groupKey(meta, meta.num_intervals), table ] }.groupTuple().view()
 
     // Merge Pileup Summaries
-    GATHERPILEUPSUMMARIES_NORMAL(pileup_table_normal_to_merge, dict.map{ meta, dict -> [ dict ] })
-    GATHERPILEUPSUMMARIES_TUMOUR(pileup_table_tumour_to_merge, dict.map{ meta, dict -> [ dict ] })
+    GATHERPILEUPSUMMARIES_NORMAL(pileup_table_normal_to_merge, dict.map{ meta, dict ->  dict  })
+    GATHERPILEUPSUMMARIES_TUMOUR(pileup_table_tumour_to_merge, dict.map{ meta, dict ->  dict  })
 
     // remove no longer necessary field: normal_id, tumour_id, num_intervals
     pileup_table_normal = Channel.empty().mix(GATHERPILEUPSUMMARIES_NORMAL.out.table, pileup_table_normal_branch.no_intervals)
