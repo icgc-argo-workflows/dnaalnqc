@@ -1,6 +1,6 @@
 process SAMTOOLS_STATS {
     tag "$meta.id"
-    label 'process_medium'
+    label 'process_single'
 
     conda "bioconda::samtools=1.17"
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
@@ -9,7 +9,7 @@ process SAMTOOLS_STATS {
 
     input:
     tuple val(meta), path(input), path(input_index)
-    path fasta
+    tuple val(meta2), path(fasta)
 
     output:
     tuple val(meta), path("*.stats"), emit: stats

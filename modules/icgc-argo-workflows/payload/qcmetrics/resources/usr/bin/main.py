@@ -133,7 +133,16 @@ def get_files_info(file_to_upload, date_str, analysis_dict, process_indicator):
 
         # retrieve qc metrics from multiqc_data
         metric_info = get_mqc_general_stats(file_to_upload)
-        file_info['info'].update({'metrics': metric_info})
+        metric_info_updated = []
+        for metric_item in metric_info:
+          metric_item_updated = {}
+          for k,v in metric_item.items():
+            k_update = k.split("_mqc-generalstats-")[-1]
+            metric_item_updated.update(
+              {k_update: v} 
+            )
+          metric_info_updated.append(metric_item_updated)
+        file_info['info'].update({'metrics': metric_info_updated})
 
     else:
         sys.exit('Error: unknown QC metrics file: %s' % file_to_upload)

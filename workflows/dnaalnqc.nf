@@ -136,6 +136,11 @@ workflow DNAALNQC {
     intervals_bed_combined             = params.no_intervals ? Channel.value([])      : PREPARE_INTERVALS.out.intervals_bed_combined
     intervals_bed_gz_tbi_combined      = params.no_intervals ? Channel.value([])      : PREPARE_INTERVALS.out.intervals_bed_gz_tbi_combined
 
+    // MOSDEPTH don't need any intervals for WGS
+    intervals_for_mosdepth = params.target ?
+        intervals_bed_combined.map{it -> [ [ id:it.baseName ], it ]}.collect() :
+        Channel.value([ [ id:'null' ], [] ])
+
     intervals            = PREPARE_INTERVALS.out.intervals_bed        // [ interval, num_intervals ] multiple interval.bed files, divided by useful intervals for scatter/gather
     intervals_bed_gz_tbi = PREPARE_INTERVALS.out.intervals_bed_gz_tbi // [ interval_bed, tbi, num_intervals ] multiple interval.bed.gz/.tbi files, divided by useful intervals for scatter/gather
 
@@ -180,12 +185,11 @@ workflow DNAALNQC {
     CRAM_QC_MOSDEPTH_SAMTOOLS (
       ch_input_sample,
       fasta,
-      fasta_fai,
-      intervals_bed_combined
+      intervals_for_mosdepth
     )
 
     // Gather QC reports
-    CRAM_QC_MOSDEPTH_SAMTOOLS.out.qc
+    CRAM_QC_MOSDEPTH_SAMTOOLS.out.reports
     .branch {
       normal: it[0].status == 0
       tumour: it[0].status == 1
@@ -261,7 +265,10 @@ workflow DNAALNQC {
     )
     
     // Gather QC reports
-    
+    //ch_reports_normal  = ch_reports_normal.mix(contamination_table.normal.collect{meta, report -> report})
+    ch_reports_tumour  = ch_reports_tumour.mix(CRAM_QC_CALCONT_PAIR.out.contamination_table.collect{meta, report -> report})
+    ch_reports_tumour  = ch_reports_tumour.mix(CRAM_QC_CALCONT_TUMOUR_ONLY.out.contamination_table.collect{meta, report -> report})
+
     // Gather used softwares versions
     ch_versions = ch_versions.mix(CRAM_QC_CALCONT_PAIR.out.versions)
     ch_versions = ch_versions.mix(CRAM_QC_CALCONT_TUMOUR_ONLY.out.versions)
@@ -269,12 +276,12 @@ workflow DNAALNQC {
     //
     // SUBWORKFLOW: Run BAM_QC_PICARD including PICARD_COLLECTHSMETRICS (targeted), PICARD_COLLECTWGSMETRICS (WGS)
     // 
-    // ch_meta.combine(bait_interval).set {ch_bait_interval}
-    // ch_input_sample.map {meta, cram, crai -> 
-    //   [meta, cram, crai, [], []]
-    // }
-    ch_input_sample.combine(bait_interval).combine(target_interval) 
-    .set {ch_bam_bai_bait_target}
+    ch_bam_bai_bait_target = params.target ?
+        ch_input_sample.combine(bait_interval).combine(target_interval) :
+        ch_input_sample.map {meta, cram, crai -> [meta, cram, crai, [], []]}
+
+    // ch_input_sample.combine(bait_interval).combine(target_interval) 
+    // .set {ch_bam_bai_bait_target}
 
  
     BAM_QC_PICARD (
