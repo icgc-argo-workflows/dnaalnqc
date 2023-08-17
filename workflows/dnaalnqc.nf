@@ -260,15 +260,22 @@ workflow DNAALNQC {
       intervals_and_num_intervals 
     )
     
+    // Gather QC reports
+    
+    // Gather used softwares versions
+    ch_versions = ch_versions.mix(CRAM_QC_CALCONT_PAIR.out.versions)
+    ch_versions = ch_versions.mix(CRAM_QC_CALCONT_TUMOUR_ONLY.out.versions)
+
     //
     // SUBWORKFLOW: Run BAM_QC_PICARD including PICARD_COLLECTHSMETRICS (targeted), PICARD_COLLECTWGSMETRICS (WGS)
     // 
-    // ch_input_sample.map {meta, cram, crai -> meta}.set {ch_meta}
     // ch_meta.combine(bait_interval).set {ch_bait_interval}
-    ch_input_sample.map {meta, cram, crai -> 
-      [meta, cram, crai, [], []]
-    }
+    // ch_input_sample.map {meta, cram, crai -> 
+    //   [meta, cram, crai, [], []]
+    // }
+    ch_input_sample.combine(bait_interval).combine(target_interval) 
     .set {ch_bam_bai_bait_target}
+
  
     BAM_QC_PICARD (
       ch_bam_bai_bait_target, // channel: [ val(meta), [bam], [bai], [bait_interval], [target_interval]]
