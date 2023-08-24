@@ -27,7 +27,8 @@ workflow INPUT_CHECK {
 def create_input_channel(LinkedHashMap row) {
     // create meta map
     def meta = [:]
-    meta.id    = row.biosample
+    meta.id    = row.biosample_id
+    meta.status = 1
     reads_meta = [meta, file(row.bam_cram)]
 
     // reads_index = SAMTOOLS_INDEX (reads_meta).bai
