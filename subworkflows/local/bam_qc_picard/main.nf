@@ -2,8 +2,8 @@
 // Run QC steps on BAM/CRAM files using Picard
 //
 
-include { PICARD_COLLECTMULTIPLEMETRICS } from '../../../modules/nf-core/picard/collectmultiplemetrics/main'
-include { PICARD_COLLECTWGSMETRICS      } from '../../../modules/nf-core/picard/collectwgsmetrics/main'
+include { PICARD_COLLECTQUALITYYIELDMETRICS } from '../../../modules/local/picard/collectqualityyieldmetrics/main'
+include { PICARD_COLLECTWGSMETRICS      } from '../../../modules/local/picard/collectwgsmetrics/main'
 include { PICARD_COLLECTHSMETRICS       } from '../../../modules/nf-core/picard/collecthsmetrics/main'
 
 workflow BAM_QC_PICARD {
@@ -12,6 +12,7 @@ workflow BAM_QC_PICARD {
     ch_fasta                // channel: [ val(meta), fasta ]
     ch_fasta_fai            // channel: [ val(meta), fasta_fai ]
     ch_fasta_dict           // channel: [ val(meta), fasta_dict ]
+    intervals
 
     main:
     ch_versions = Channel.empty()
@@ -19,8 +20,8 @@ workflow BAM_QC_PICARD {
 
     ch_bam_bai = ch_bam_bai_bait_target.map{meta, bam, bai, bait, target -> return [meta,bam,bai]}
 
-    PICARD_COLLECTMULTIPLEMETRICS( ch_bam_bai, ch_fasta, ch_fasta_fai )
-    ch_versions = ch_versions.mix(PICARD_COLLECTMULTIPLEMETRICS.out.versions.first())
+    PICARD_COLLECTQUALITYYIELDMETRICS( ch_bam_bai, ch_fasta )
+    ch_versions = ch_versions.mix(PICARD_COLLECTQUALITYYIELDMETRICS.out.versions.first())
 
     ch_bam_bai_bait_target_branched = ch_bam_bai_bait_target.branch {
         hsmetrics  : it.size == 5 && it[3] != [] && it[4] != []
@@ -33,13 +34,13 @@ workflow BAM_QC_PICARD {
     ch_coverage_metrics = ch_coverage_metrics.mix(PICARD_COLLECTHSMETRICS.out.metrics)
     ch_versions = ch_versions.mix(PICARD_COLLECTHSMETRICS.out.versions.first())
 
-    PICARD_COLLECTWGSMETRICS( ch_bam_bai_bait_target_branched.wgsmetrics, ch_fasta, ch_fasta_fai, [] )
+    PICARD_COLLECTWGSMETRICS( ch_bam_bai_bait_target_branched.wgsmetrics, ch_fasta, ch_fasta_fai, ch_fasta_dict, intervals )
     ch_versions = ch_versions.mix(PICARD_COLLECTWGSMETRICS.out.versions.first())
     ch_coverage_metrics = ch_coverage_metrics.mix(PICARD_COLLECTWGSMETRICS.out.metrics)
 
     emit:
     coverage_metrics    = ch_coverage_metrics                       // channel: [ val(meta), [ coverage_metrics ] ]
-    multiple_metrics    = PICARD_COLLECTMULTIPLEMETRICS.out.metrics // channel: [ val(meta), [ multiple_metrics ] ]
+    quality_metrics     = PICARD_COLLECTQUALITYYIELDMETRICS.out.metrics // channel: [ val(meta), [ quality_metrics ] ]
 
     versions            = ch_versions                               // channel: [ versions.yml ]
 }
