@@ -5,6 +5,7 @@
 // A when clause condition is defined in the conf/modules.config to determine if the module should be run
 
 include { GATK4_CALCULATECONTAMINATION as CALCULATECONTAMINATION        } from '../../../modules/nf-core/gatk4/calculatecontamination/main'
+include { GATK4_CALCULATECONTAMINATION as CALCULATECONTAMINATION_N      } from '../../../modules/nf-core/gatk4/calculatecontamination/main'
 include { GATK4_GATHERPILEUPSUMMARIES as GATHERPILEUPSUMMARIES_NORMAL   } from '../../../modules/nf-core/gatk4/gatherpileupsummaries/main'
 include { GATK4_GATHERPILEUPSUMMARIES as GATHERPILEUPSUMMARIES_TUMOUR   } from '../../../modules/nf-core/gatk4/gatherpileupsummaries/main'
 include { GATK4_GETPILEUPSUMMARIES as GETPILEUPSUMMARIES_NORMAL         } from '../../../modules/nf-core/gatk4/getpileupsummaries/main'
@@ -60,8 +61,8 @@ workflow CRAM_QC_GATK4_CONTAMINATION {
     }
 
     // Only when using intervals
-    pileup_table_normal_to_merge = pileup_table_normal_branch.intervals.map{ meta, table -> [ groupKey(meta, meta.num_intervals), table ] }.groupTuple().view()
-    pileup_table_tumour_to_merge = pileup_table_tumour_branch.intervals.map{ meta, table -> [ groupKey(meta, meta.num_intervals), table ] }.groupTuple().view()
+    pileup_table_normal_to_merge = pileup_table_normal_branch.intervals.map{ meta, table -> [ groupKey(meta, meta.num_intervals), table ] }.groupTuple()
+    pileup_table_tumour_to_merge = pileup_table_tumour_branch.intervals.map{ meta, table -> [ groupKey(meta, meta.num_intervals), table ] }.groupTuple()
 
     // Merge Pileup Summaries
     GATHERPILEUPSUMMARIES_NORMAL(pileup_table_normal_to_merge, dict.map{ meta, dict ->  dict  })
@@ -69,14 +70,17 @@ workflow CRAM_QC_GATK4_CONTAMINATION {
 
     // remove no longer necessary field: normal_id, tumour_id, num_intervals
     pileup_table_normal = Channel.empty().mix(GATHERPILEUPSUMMARIES_NORMAL.out.table, pileup_table_normal_branch.no_intervals)
-        .map{ meta, table -> [ meta - meta.subMap('normal_id', 'tumour_id', 'num_intervals') + [ id:meta.tumour_id + "_vs_" + meta.normal_id ], table ] }
+        .map{ meta, table -> [ meta - meta.subMap('num_intervals') + [ id:meta.tumour_id + "_vs_" + meta.normal_id ], table ] }
 
     // remove no longer necessary field: normal_id, tumour_id, num_intervals
     pileup_table_tumour = Channel.empty().mix(GATHERPILEUPSUMMARIES_TUMOUR.out.table, pileup_table_tumour_branch.no_intervals)
-        .map{ meta, table -> [ meta - meta.subMap('normal_id', 'tumour_id', 'num_intervals') + [ id:meta.tumour_id + "_vs_" + meta.normal_id ], table ] }
+        .map{ meta, table -> [ meta - meta.subMap('num_intervals') + [ id:meta.tumour_id + "_vs_" + meta.normal_id ], table ] }
 
     // Contamination and segmentation tables created using calculatecontamination on the pileup summary table
     CALCULATECONTAMINATION(pileup_table_tumour.join(pileup_table_normal, failOnDuplicate: true, failOnMismatch: true))
+
+    // Contamination and segmentation tables created using calculatecontamination on the pileup summary table
+    CALCULATECONTAMINATION_N(pileup_table_normal.map{ meta, table -> [ meta, table, [] ] })
 
     // Gather versions of all tools used
 
@@ -89,7 +93,9 @@ workflow CRAM_QC_GATK4_CONTAMINATION {
     emit:
     pileup_table_normal // channel: [ meta, table_normal ]
     pileup_table_tumour  // channel: [ meta, table_tumour ]
-    contamination_table    = CALCULATECONTAMINATION.out.contamination    // channel: [ meta, contamination ]
-    segmentation_table     = CALCULATECONTAMINATION.out.segmentation     // channel: [ meta, segmentation ]
+    contamination_table    = CALCULATECONTAMINATION.out.contamination.map {meta, contamination -> [[id:meta.tumour_id], contamination]}    // channel: [ meta, contamination ]
+    segmentation_table     = CALCULATECONTAMINATION.out.segmentation.map {meta, segmentation -> [[id:meta.tumour_id], segmentation]}     // channel: [ meta, segmentation ]
+    contamination_table_normal    = CALCULATECONTAMINATION_N.out.contamination.map {meta, contamination -> [[id:meta.normal_id], contamination]}    // channel: [ meta, contamination ]
+    segmentation_table_normal     = CALCULATECONTAMINATION_N.out.segmentation.map {meta, segmentation -> [[id:meta.normal_id], segmentation]}     // channel: [ meta, segmentation ]
     versions = ch_versions // channel: [ versions.yml ]
 }

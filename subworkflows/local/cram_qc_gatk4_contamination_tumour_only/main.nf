@@ -44,7 +44,7 @@ workflow CRAM_QC_GATK4_CONTAMINATION_TUMOUR_ONLY {
     pileup_table_to_merge = pileup_table_branch.intervals.map{ meta, table -> [ groupKey(meta, meta.num_intervals), table ] }.groupTuple()
     
     // Merge Pileup Summaries
-    GATHERPILEUPSUMMARIES(pileup_table_to_merge, dict.map{ meta, dict -> [ dict ] })
+    GATHERPILEUPSUMMARIES(pileup_table_to_merge, dict.map{ meta, dict ->  dict })
 
     // Mix intervals and no_intervals channels together
     pileup_table = Channel.empty().mix(GATHERPILEUPSUMMARIES.out.table, pileup_table_branch.no_intervals)

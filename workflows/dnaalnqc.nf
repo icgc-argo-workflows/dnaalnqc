@@ -37,6 +37,7 @@ include { SONG_SCORE_UPLOAD              } from '../subworkflows/icgc-argo-workf
 include { CRAM_QC_MOSDEPTH_SAMTOOLS      } from '../subworkflows/local/cram_qc_mosdepth_samtools/main'
 include { CRAM_QC_GATK4_CONTAMINATION as CRAM_QC_CALCONT_PAIR   } from '../subworkflows/local/cram_qc_gatk4_contamination/main'
 include { CRAM_QC_GATK4_CONTAMINATION_TUMOUR_ONLY as CRAM_QC_CALCONT_TUMOUR_ONLY   } from '../subworkflows/local/cram_qc_gatk4_contamination_tumour_only/main'
+//include { CRAM_QC_GATK4_CONTAMINATION_TUMOUR_ONLY as CRAM_QC_CALCONT_NORMAL_ONLY   } from '../subworkflows/local/cram_qc_gatk4_contamination_tumour_only/main'
 include { PICARD_COLLECTOXOGMETRICS      } from '../modules/local/picard/collectoxogmetrics/main'
 include { BAM_QC_PICARD               } from '../subworkflows/local/bam_qc_picard/main'
 
@@ -72,16 +73,14 @@ workflow DNAALNQC {
 
     ch_versions = Channel.empty()
     ch_reports = Channel.empty()
-    ch_reports_normal = Channel.empty()
-    ch_reports_tumour = Channel.empty()
+    // ch_reports_normal = Channel.empty()
+    // ch_reports_tumour = Channel.empty()
 
     // Read in samplesheet, validate and stage input files
     if ( params.local_mode ) {
       if (params.input) {
         ch_input = Channel.fromPath(params.input)
         ch_input_sample = INPUT_CHECK (ch_input).reads_index
-        ch_input_sample.view()
-        // ch_versions = ch_versions.mix(INPUT_CHECK.out.versions)
       } 
       else { exit 1, 'Input samplesheet must be specified for local mode!' }
     } else if (params.study_id && params.analysis_id_tumour) {
@@ -179,9 +178,9 @@ workflow DNAALNQC {
     }
     .set{oxog_metrics}
 
-    ch_reports  = ch_reports.mix(PICARD_COLLECTOXOGMETRICS.out.metrics.collect{meta, report -> report})
-    ch_reports_normal  = ch_reports_normal.mix(oxog_metrics.normal.collect{meta, report -> report})
-    ch_reports_tumour  = ch_reports_tumour.mix(oxog_metrics.tumour.collect{meta, report -> report})
+    ch_reports  = ch_reports.mix(PICARD_COLLECTOXOGMETRICS.out.metrics).view()
+    // ch_reports_normal  = ch_reports_normal.mix(oxog_metrics.normal.collect{meta, report -> report})
+    // ch_reports_tumour  = ch_reports_tumour.mix(oxog_metrics.tumour.collect{meta, report -> report})
     
     // Gather used softwares versions
     ch_versions = ch_versions.mix(PICARD_COLLECTOXOGMETRICS.out.versions)
@@ -204,9 +203,9 @@ workflow DNAALNQC {
     }
     .set{verifybamid2_metrics}
 
-    ch_reports  = ch_reports.mix(VERIFYBAMID_VERIFYBAMID2.out.self_sm.collect{meta, report -> report})
-    ch_reports_normal  = ch_reports_normal.mix(verifybamid2_metrics.normal.collect{meta, report -> report})
-    ch_reports_tumour  = ch_reports_tumour.mix(verifybamid2_metrics.tumour.collect{meta, report -> report})
+    ch_reports  = ch_reports.mix(VERIFYBAMID_VERIFYBAMID2.out.self_sm)
+    // ch_reports_normal  = ch_reports_normal.mix(verifybamid2_metrics.normal.collect{meta, report -> report})
+    // ch_reports_tumour  = ch_reports_tumour.mix(verifybamid2_metrics.tumour.collect{meta, report -> report})
 
 
     //
@@ -226,9 +225,10 @@ workflow DNAALNQC {
     }
     .set {mosdepth_samtools_metrics}
 
-    ch_reports  = ch_reports.mix(CRAM_QC_MOSDEPTH_SAMTOOLS.out.reports.collect{meta, report -> report})
-    ch_reports_normal  = ch_reports_normal.mix(mosdepth_samtools_metrics.normal.collect{meta, report -> report})
-    ch_reports_tumour  = ch_reports_tumour.mix(mosdepth_samtools_metrics.tumour.collect{meta, report -> report})
+    ch_reports  = ch_reports.mix(CRAM_QC_MOSDEPTH_SAMTOOLS.out.reports)
+    ch_reports.view()
+    // ch_reports_normal  = ch_reports_normal.mix(mosdepth_samtools_metrics.normal.collect{meta, report -> report})
+    // ch_reports_tumour  = ch_reports_tumour.mix(mosdepth_samtools_metrics.tumour.collect{meta, report -> report})
     
     // Gather used softwares versions
     ch_versions = ch_versions.mix(CRAM_QC_MOSDEPTH_SAMTOOLS.out.versions)
@@ -294,11 +294,13 @@ workflow DNAALNQC {
       germline_resource_tbi,
       intervals_and_num_intervals 
     )
-    
+
     // Gather QC reports
-    // ch_reports  = ch_reports.mix(contamination_table.normal.collect{meta, report -> report})
-    ch_reports_tumour  = ch_reports_tumour.mix(CRAM_QC_CALCONT_PAIR.out.contamination_table.collect{meta, report -> report})
-    ch_reports_tumour  = ch_reports_tumour.mix(CRAM_QC_CALCONT_TUMOUR_ONLY.out.contamination_table.collect{meta, report -> report})
+    ch_reports  = ch_reports.mix(CRAM_QC_CALCONT_PAIR.out.contamination_table)
+    ch_reports  = ch_reports.mix(CRAM_QC_CALCONT_PAIR.out.contamination_table_normal)
+    ch_reports  = ch_reports.mix(CRAM_QC_CALCONT_TUMOUR_ONLY.out.contamination_table)
+    // ch_reports_tumour  = ch_reports_tumour.mix(CRAM_QC_CALCONT_PAIR.out.contamination_table.collect{meta, report -> report})
+    // ch_reports_tumour  = ch_reports_tumour.mix(CRAM_QC_CALCONT_TUMOUR_ONLY.out.contamination_table.collect{meta, report -> report})
 
     // Gather used softwares versions
     ch_versions = ch_versions.mix(CRAM_QC_CALCONT_PAIR.out.versions)
@@ -331,19 +333,19 @@ workflow DNAALNQC {
     }
     .set {coverage_metrics}
 
-    BAM_QC_PICARD.out.quality_metrics
+    BAM_QC_PICARD.out.multiple_metrics
     .branch {
       normal: it[0].status == 0
       tumour: it[0].status == 1
     }
-    .set {quality_metrics}
+    .set {multiple_metrics}
 
-    ch_reports  = ch_reports.mix(BAM_QC_PICARD.out.coverage_metrics.collect{meta, report -> report})
-    ch_reports  = ch_reports.mix(BAM_QC_PICARD.out.quality_metrics.collect{meta, report -> report})
-    ch_reports_normal  = ch_reports_normal.mix(coverage_metrics.normal.collect{meta, report -> report})
-    ch_reports_normal  = ch_reports_normal.mix(quality_metrics.normal.collect{meta, report -> report})
-    ch_reports_tumour  = ch_reports_tumour.mix(coverage_metrics.tumour.collect{meta, report -> report})
-    ch_reports_tumour  = ch_reports_tumour.mix(quality_metrics.tumour.collect{meta, report -> report})
+    ch_reports  = ch_reports.mix(BAM_QC_PICARD.out.coverage_metrics)
+    ch_reports  = ch_reports.mix(BAM_QC_PICARD.out.multiple_metrics)
+    // ch_reports_normal  = ch_reports_normal.mix(coverage_metrics.normal.collect{meta, report -> report})
+    // ch_reports_normal  = ch_reports_normal.mix(quality_metrics.normal.collect{meta, report -> report})
+    // ch_reports_tumour  = ch_reports_tumour.mix(coverage_metrics.tumour.collect{meta, report -> report})
+    // ch_reports_tumour  = ch_reports_tumour.mix(quality_metrics.tumour.collect{meta, report -> report})
 
     // Gather used softwares versions
     ch_versions = ch_versions.mix(BAM_QC_PICARD.out.versions)
@@ -352,12 +354,12 @@ workflow DNAALNQC {
     // MODULE: MultiQC
     //
     ch_multiqc = Channel.empty()
-    ch_multiqc = ch_multiqc.mix(ch_reports.collect().ifEmpty([]))
-    ch_multiqc_tumour = Channel.empty()
-    ch_multiqc_tumour = ch_multiqc_tumour.mix(ch_reports_tumour.collect().ifEmpty([]))
-    ch_multiqc_normal = Channel.empty()
-    ch_multiqc_normal = ch_multiqc_normal.mix(ch_reports_normal.collect().ifEmpty([]))
-    ch_multiqc_normal.collect()
+    ch_multiqc = ch_multiqc.mix(ch_reports.collect{meta, report -> report}).ifEmpty([])
+    // ch_multiqc_tumour = Channel.empty()
+    // ch_multiqc_tumour = ch_multiqc_tumour.mix(ch_reports_tumour.collect().ifEmpty([]))
+    // ch_multiqc_normal = Channel.empty()
+    // ch_multiqc_normal = ch_multiqc_normal.mix(ch_reports_normal.collect().ifEmpty([]))
+    // ch_multiqc_normal.collect()
 
     MULTIQC_ALL (
         ch_multiqc.collect(),
@@ -367,21 +369,21 @@ workflow DNAALNQC {
     )
     ch_versions = ch_versions.mix(MULTIQC_ALL.out.versions)
 
-    MULTIQC_T (
-        ch_multiqc_tumour.collect(),
-        ch_multiqc_config.toList(),
-        ch_multiqc_custom_config.toList(),
-        ch_multiqc_logo.toList()
-    )
-    ch_versions = ch_versions.mix(MULTIQC_T.out.versions)
+    // MULTIQC_T (
+    //     ch_multiqc_tumour.collect(),
+    //     ch_multiqc_config.toList(),
+    //     ch_multiqc_custom_config.toList(),
+    //     ch_multiqc_logo.toList()
+    // )
+    // ch_versions = ch_versions.mix(MULTIQC_T.out.versions)
 
-    MULTIQC_N (
-        ch_multiqc_normal.collect(),
-        ch_multiqc_config.toList(),
-        ch_multiqc_custom_config.toList(),
-        ch_multiqc_logo.toList()
-    )
-    ch_versions = ch_versions.mix(MULTIQC_N.out.versions)
+    // MULTIQC_N (
+    //     ch_multiqc_normal.collect(),
+    //     ch_multiqc_config.toList(),
+    //     ch_multiqc_custom_config.toList(),
+    //     ch_multiqc_logo.toList()
+    // )
+    // ch_versions = ch_versions.mix(MULTIQC_N.out.versions)
 
     // Collect Software Versions
     CUSTOM_DUMPSOFTWAREVERSIONS (ch_versions.unique{ it.text }.collectFile(name: 'collated_versions.yml'))
@@ -391,26 +393,38 @@ workflow DNAALNQC {
       //
       // Match the QC files with the metadata info
       //
+      // ch_meta_analysis
+      // .branch {
+      //   normal: it[0].status == 0
+      //   tumour: it[0].status == 1
+      // }.set {ch_meta_analysis_status}
+
+      // ch_meta_analysis_status.normal
+      // .combine(ch_multiqc_normal.collect().concat(MULTIQC_N.out.report, MULTIQC_N.out.data).collect().toList())
+      // .set {ch_metadata_upload_normal}
+
+      // ch_meta_analysis_status.tumour
+      // .combine(ch_multiqc_tumour.collect().concat(MULTIQC_T.out.report, MULTIQC_T.out.data).collect().toList())
+      // .set {ch_metadata_upload_tumour}
+
+      ch_reports
+      .map { meta, report -> [ [ id: meta.id ], report ]}
+      .groupTuple()
+      .set {ch_reports_grouped}
+
       ch_meta_analysis
-      .branch {
-        normal: it[0].status == 0
-        tumour: it[0].status == 1
-      }.set {ch_meta_analysis_status}
+      .map { meta, analysis -> [ [ id: meta.id ], analysis ]}
 
-      ch_meta_analysis_status.normal
-      .combine(ch_multiqc_normal.collect().concat(MULTIQC_N.out.report, MULTIQC_N.out.data).collect().toList())
-      .set {ch_metadata_upload_normal}
+      ch_meta_analysis.join(ch_reports_grouped)
+      .set { ch_metadata_upload }
 
-      ch_meta_analysis_status.tumour
-      .combine(ch_multiqc_tumour.collect().concat(MULTIQC_T.out.report, MULTIQC_T.out.data).collect().toList())
-      .set {ch_metadata_upload_tumour}
+      ch_metadata_upload.view()
+      // ch_metadata_upload = ch_metadata_upload.concat(ch_metadata_upload_tumour)
 
-      ch_metadata_upload = ch_metadata_upload_normal.concat(ch_metadata_upload_tumour)
-
-      // generate payload
-      PAYLOAD_QCMETRICS(
-        ch_metadata_upload, '', '', CUSTOM_DUMPSOFTWAREVERSIONS.out.yml.collect()
-      ) 
+      // // generate payload
+      // PAYLOAD_QCMETRICS(
+      //   ch_metadata_upload, '', '', CUSTOM_DUMPSOFTWAREVERSIONS.out.yml.collect(), MULTIQC_T.out.data.collect()
+      // ) 
 
     // //SONG_SCORE_UPLOAD(PAYLOAD_QCMETRICS.out.payload_files)
     }

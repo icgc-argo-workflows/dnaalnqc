@@ -2,7 +2,8 @@
 // Run QC steps on BAM/CRAM files using Picard
 //
 
-include { PICARD_COLLECTQUALITYYIELDMETRICS } from '../../../modules/local/picard/collectqualityyieldmetrics/main'
+include { PICARD_COLLECTMULTIPLEMETRICS } from '../../../modules/nf-core/picard/collectmultiplemetrics/main'
+// include { PICARD_COLLECTQUALITYYIELDMETRICS } from '../../../modules/local/picard/collectqualityyieldmetrics/main'
 include { PICARD_COLLECTWGSMETRICS      } from '../../../modules/local/picard/collectwgsmetrics/main'
 include { PICARD_COLLECTHSMETRICS       } from '../../../modules/nf-core/picard/collecthsmetrics/main'
 
@@ -20,8 +21,10 @@ workflow BAM_QC_PICARD {
 
     ch_bam_bai = ch_bam_bai_bait_target.map{meta, bam, bai, bait, target -> return [meta,bam,bai]}
 
-    PICARD_COLLECTQUALITYYIELDMETRICS( ch_bam_bai, ch_fasta )
-    ch_versions = ch_versions.mix(PICARD_COLLECTQUALITYYIELDMETRICS.out.versions.first())
+    PICARD_COLLECTMULTIPLEMETRICS( ch_bam_bai, ch_fasta, ch_fasta_fai )
+    ch_versions = ch_versions.mix(PICARD_COLLECTMULTIPLEMETRICS.out.versions.first())
+    // PICARD_COLLECTQUALITYYIELDMETRICS( ch_bam_bai, ch_fasta )
+    // ch_versions = ch_versions.mix(PICARD_COLLECTQUALITYYIELDMETRICS.out.versions.first())
 
     ch_bam_bai_bait_target_branched = ch_bam_bai_bait_target.branch {
         hsmetrics  : it.size == 5 && it[3] != [] && it[4] != []
@@ -40,7 +43,8 @@ workflow BAM_QC_PICARD {
 
     emit:
     coverage_metrics    = ch_coverage_metrics                       // channel: [ val(meta), [ coverage_metrics ] ]
-    quality_metrics     = PICARD_COLLECTQUALITYYIELDMETRICS.out.metrics // channel: [ val(meta), [ quality_metrics ] ]
+    multiple_metrics    = PICARD_COLLECTMULTIPLEMETRICS.out.metrics // channel: [ val(meta), [ multiple_metrics ] ]
+    // quality_metrics     = PICARD_COLLECTQUALITYYIELDMETRICS.out.metrics // channel: [ val(meta), [ quality_metrics ] ]
 
     versions            = ch_versions                               // channel: [ versions.yml ]
 }
