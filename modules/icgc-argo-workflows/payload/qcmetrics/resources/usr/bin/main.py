@@ -36,6 +36,7 @@ from glob import glob
 import yaml
 import csv
 import io
+from math import log10, isnan
 
 workflow_process_map = {
     'Pre Alignment QC': 'pre_aln',
@@ -43,6 +44,7 @@ workflow_process_map = {
 }
 
 tool_list = ['fastqc', 'cutadapt', 'multiqc', 'CollectMultipleMetrics', 'CollectWgsMetrics', 'CollectHsMetrics', 'stats', 'mosdepth', 'CollectOxoGMetrics']
+file_types = ['fastqc', 'cutadapt', 'samtools_stats', 'picard_wgsmetrics', 'picard_OxoGMetrics', 'picard_QualityYieldMetrics']
 
 def calculate_size(file_path):
     return os.stat(file_path).st_size
@@ -55,7 +57,8 @@ def calculate_md5(file_path):
             md5.update(chunk)
     return md5.hexdigest()
 
-def get_files_info(file_to_upload, date_str, analysis_dict, process_indicator):
+def get_files_info(file_to_upload, date_str, analysis_dict, process_indicator, multiqc=[]):
+    # sampleId = analysis_dict['samples'][0]['sampleId']
     file_info = {
         'fileSize': calculate_size(file_to_upload),
         'fileMd5sum': calculate_md5(file_to_upload),
@@ -82,32 +85,65 @@ def get_files_info(file_to_upload, date_str, analysis_dict, process_indicator):
         file_info['info'].update({'description': 'Perform cutadpat on sequencing reads and generate log file.'})
 
     elif re.match(r'.+?CollectMultipleMetrics\.tgz$', file_to_upload):
-        file_type = 'CollectMultipleMetrics'
+        file_type = 'picard_QualityYieldMetrics'
         file_info.update({'dataType': 'Sequencing QC'})
         file_info['info']['data_subtypes'] = ['Sample Metrics']
         file_info['info'].update({'analysis_tools': ['Picard/CollectMultipleMetrics']})
         file_info['info'].update({'description': 'Picard tool to collect multiple classes of metrics including CollectAlignmentSummaryMetrics, CollectInsertSizeMetrics, QualityScoreDistribution, MeanQualityByCycle, CollectBaseDistributionByCycle, CollectGcBiasMetrics, RnaSeqMetrics, CollectSequencingArtifactMetrics and CollectQualityYieldMetrics.'})
 
+        # # retrieve qc metrics from multiqc_data
+        # metric_info = multiqc.get('picard_QualityYieldMetrics', [])
+        # metric_info_updated = []
+        # for metric_item in metric_info:
+        #   if not metric_item['Sample'] == sampleId: continue
+        #   metric_info_updated.append(metric_item)
+        # file_info['info'].update({'metrics': metric_info_updated})
+
+
     elif re.match(r'.+?CollectWgsMetrics\.tgz$', file_to_upload):
-        file_type = 'CollectWgsMetrics'
+        file_type = 'picard_wgsmetrics'
         file_info.update({'dataType': 'Sequencing QC'})
         file_info['info']['data_subtypes'] = ['Sample Metrics']
         file_info['info'].update({'analysis_tools': ['Picard/CollectWgsMetrics']})
         file_info['info'].update({'description': 'Picard tool to collect metrics about coverage and performance of whole genome sequencing (WGS) experiments.'})
 
+        # # retrieve qc metrics from multiqc_data
+        # metric_info = multiqc.get('picard_wgsmetrics', [])
+        # metric_info_updated = []
+        # for metric_item in metric_info:
+        #   if not metric_item['Sample'] == sampleId: continue
+        #   metric_info_updated.append(metric_item)
+        # file_info['info'].update({'metrics': metric_info_updated})
+
     elif re.match(r'.+?CollectHsMetrics\.tgz$', file_to_upload):
-        file_type = 'CollectHsMetrics'
+        file_type = 'picard_hsmetrics'
         file_info.update({'dataType': 'Sequencing QC'})
         file_info['info']['data_subtypes'] = ['Sample Metrics']
         file_info['info'].update({'analysis_tools': ['Picard/CollectHsMetrics']})
         file_info['info'].update({'description': 'Picard tool to collect hybrid-selection (HS) metrics for targeted sequencing experiments.'})
 
+        # # retrieve qc metrics from multiqc_data
+        # metric_info = multiqc.get('picard_hsmetrics', [])
+        # metric_info_updated = []
+        # for metric_item in metric_info:
+        #   if not metric_item['Sample'] == sampleId: continue
+        #   metric_info_updated.append(metric_item)
+        # file_info['info'].update({'metrics': metric_info_updated})
+
     elif re.match(r'.+?CollectOxoGMetrics\.tgz$', file_to_upload):
-        file_type = 'CollectOxoGMetrics'
+        file_type = 'picard_OxoGMetrics'
         file_info.update({'dataType': 'Sequencing QC'})
         file_info['info']['data_subtypes'] = ['Sample Metrics']
         file_info['info'].update({'analysis_tools': ['Picard/CollectOxoGMetrics']})
         file_info['info'].update({'description': 'Picard tool to collects metrics quantifying the error rate resulting from oxidative artifacts.'})
+
+        # # retrieve qc metrics from multiqc_data
+        # metric_info = multiqc.get('picard_OxoGMetrics', [])
+        # metric_info_updated = []
+        # for metric_item in metric_info:
+        #   if not metric_item['SAMPLE_ALIAS'] == sampleId: continue
+        #   metric_info_updated.append(metric_item)
+        # file_info['info'].update({'metrics': metric_info_updated})
 
     elif re.match(r'.+?stats\.tgz$', file_to_upload):
         file_type = 'samtools_stats'
@@ -115,6 +151,14 @@ def get_files_info(file_to_upload, date_str, analysis_dict, process_indicator):
         file_info['info']['data_subtypes'] = ['Sample Metrics']
         file_info['info'].update({'analysis_tools': ['Samtools/Stats']})
         file_info['info'].update({'description': 'Samtools to collect comprehensive statistics from alignment file.'})
+
+        # # retrieve qc metrics from multiqc_data
+        # metric_info = multiqc.get('samtools_stats', [])
+        # metric_info_updated = []
+        # for metric_item in metric_info:
+        #   if not metric_item['Sample'] == sampleId: continue
+        #   metric_info_updated.append(metric_item)
+        # file_info['info'].update({'metrics': metric_info_updated})
 
     elif re.match(r'.+?mosdepth\.tgz$', file_to_upload):
         file_type = 'mosdepth'
@@ -131,21 +175,28 @@ def get_files_info(file_to_upload, date_str, analysis_dict, process_indicator):
         file_info['info'].update({'analysis_tools': ['MultiQC']})
         file_info['info'].update({'description': 'MultiQC to aggregate results from bioinformatics analyses across many samples into a single report.'})
 
-        # retrieve qc metrics from multiqc_data
-        metric_info = get_mqc_general_stats(file_to_upload)
-        metric_info_updated = []
-        for metric_item in metric_info:
-          metric_item_updated = {}
-          for k,v in metric_item.items():
-            k_update = k.split("_mqc-generalstats-")[-1]
-            metric_item_updated.update(
-              {k_update: v} 
-            )
-          metric_info_updated.append(metric_item_updated)
-        file_info['info'].update({'metrics': metric_info_updated})
+        # # retrieve qc metrics from multiqc_data
+        # metric_info = get_mqc_stats(file_to_upload)
+        # metric_info_updated = []
+        # for metric_item in metric_info:
+        #   metric_item_updated = {}
+        #   for k,v in metric_item.items():
+        #     k_update = k.split("_mqc-generalstats-")[-1]
+        #     metric_item_updated.update(
+        #       {k_update: v} 
+        #     )
+        #   metric_info_updated.append(metric_item_updated)
+        # file_info['info'].update({'metrics': metric_info_updated})
 
     else:
         sys.exit('Error: unknown QC metrics file: %s' % file_to_upload)
+
+    # retrieve qc metrics from multiqc_data
+    metric_info = multiqc.get(file_type, [])
+    metric_info_updated = []
+    for metric_item in metric_info:
+      metric_info_updated.append(metric_item)
+    file_info['info'].update({'metrics': metric_info_updated})
 
     # file naming patterns:
     #   pattern:  <argo_study_id>.<argo_donor_id>.<argo_sample_id>.<experiment_strategy>.<date>.<process_indicator>.<file_type>.<file_ext>
@@ -222,17 +273,20 @@ def prepare_tarball(sampleId, qc_files, tool_list):
         for f in files_to_tar[tool]:
           tar.add(f, arcname=os.path.basename(f))
 
-def get_mqc_general_stats(file_to_upload):
-    mqc_general_stats = []
-    with tarfile.open(file_to_upload, 'r') as tar:
-      for member in tar.getmembers():
-        if member.name.endswith('multiqc_general_stats.txt'):
-          f = io.StringIO(tar.extractfile(member).read().decode('utf-8'))
-          reader = csv.DictReader(f, delimiter="\t")
-          for row in reader:
-            mqc_general_stats.append(row)
-                       
-    return mqc_general_stats
+
+def get_mqc_stats(multiqc, sampleId):
+    mqc_stats = {}
+    for f in sorted(glob(multiqc+'/*.txt')):
+      for tool_metrics in file_types:
+        if f.endswith(tool_metrics+'.txt'):
+          with open(f, 'r') as fn: 
+            mqc_stats[tool_metrics] = []
+            reader = csv.DictReader(fn, delimiter="\t")
+            for row in reader:
+              if not sampleId in row.get('Sample'): continue
+              mqc_stats[tool_metrics].append(row)
+                          
+    return mqc_stats
 
 
 def main():
@@ -251,6 +305,7 @@ def main():
     parser.add_argument("-s", "--wf-session", dest="wf_session", required=True, help="workflow session ID")
     parser.add_argument("-v", "--wf-version", dest="wf_version", required=True, help="Workflow version")
     parser.add_argument("-p", "--pipeline_yml", dest="pipeline_yml", required=False, help="Pipeline info in yaml")
+    parser.add_argument("-m", "--multiqc", dest="multiqc", required=False, help="multiqc files folder")
 
     args = parser.parse_args()
     
@@ -261,6 +316,11 @@ def main():
     if args.pipeline_yml:
       with open(args.pipeline_yml, 'r') as f:
         pipeline_info = yaml.safe_load(f)
+
+    # get tool_specific & aggregated metrics from multiqc
+    mqc_stats = {}
+    if args.multiqc:
+      mqc_stats = get_mqc_stats(args.multiqc, analysis_dict['samples'][0]['sampleId'])
 
     payload = {
         'analysisType': {
@@ -278,7 +338,10 @@ def main():
                     'input_analysis_id': analysis_dict.get('analysisId')
                 }
             ],
-            'info': pipeline_info
+            'info': {
+              'pipeline_info': pipeline_info,
+              'metrics': mqc_stats.get('metrics', None)
+            }
         },
         'files': [],
         'experiment': analysis_dict.get('experiment'),
@@ -310,10 +373,10 @@ def main():
 
     # prepare tarball to include all QC files generated by one tool
     prepare_tarball(analysis_dict['samples'][0]['sampleId'], args.files_to_upload, tool_list)
-
+   
     process_indicator = workflow_process_map.get(args.wf_name)
     for f in sorted(glob('tarball/*.tgz')):
-      file_info = get_files_info(f, date_str, analysis_dict, process_indicator)
+      file_info = get_files_info(f, date_str, analysis_dict, process_indicator, mqc_stats)
       payload['files'].append(file_info)
 
     with open("%s.%s.payload.json" % (str(uuid.uuid4()), args.wf_name.replace(" ","_")), 'w') as f:

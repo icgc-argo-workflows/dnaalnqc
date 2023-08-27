@@ -14,6 +14,7 @@ process PAYLOAD_QCMETRICS {
       val genome_annotation
       val genome_build
       path pipeline_yml
+      path multiqc
 
     output:  // output, make update as needed
       tuple val(meta), path("*.payload.json"), path("out/*"), emit: payload_files
@@ -21,7 +22,8 @@ process PAYLOAD_QCMETRICS {
 
     script:
       // add and initialize variables here as needed
-      def arg_pipeline_yml = pipeline_yml.name != 'NO_FILE' ? "-p $pipeline_yml" : ''
+      def arg_pipeline_yml = pipeline_yml ? "-p $pipeline_yml" : ''
+      def arg_multiqc = multiqc ? "-m $multiqc" : ''
       """
       main.py \
         -f ${files_to_upload} \
@@ -31,7 +33,8 @@ process PAYLOAD_QCMETRICS {
         -w "${workflow.manifest.name}" \
         -s ${workflow.sessionId} \
         -v ${workflow.manifest.version} \
-        $arg_pipeline_yml
+        $arg_pipeline_yml \
+        $arg_multiqc
 
       cat <<-END_VERSIONS > versions.yml
       "${task.process}":

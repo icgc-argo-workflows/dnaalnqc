@@ -388,6 +388,13 @@ workflow DNAALNQC {
     // Collect Software Versions
     CUSTOM_DUMPSOFTWAREVERSIONS (ch_versions.unique{ it.text }.collectFile(name: 'collated_versions.yml'))
 
+    // Match the QC files with the metadata info
+    ch_reports
+    .transpose()
+    .map { meta, files -> [[id: meta.id], files] }
+    .groupTuple()
+    .set{ ch_meta_reports }
+
     // upload QC files and metadata to song/score
     if (!params.local_mode) {
       //
@@ -407,18 +414,31 @@ workflow DNAALNQC {
       // .combine(ch_multiqc_tumour.collect().concat(MULTIQC_T.out.report, MULTIQC_T.out.data).collect().toList())
       // .set {ch_metadata_upload_tumour}
 
-      ch_reports
-      .map { meta, report -> [ [ id: meta.id ], report ]}
-      .groupTuple()
-      .set {ch_reports_grouped}
+      // ch_reports
+      // .map { meta, report -> [ [ id: meta.id ], report ]}
+      // .groupTuple()
+      // .set {ch_reports_grouped}
 
-      ch_meta_analysis
-      .map { meta, analysis -> [ [ id: meta.id ], analysis ]}
-
-      ch_meta_analysis.join(ch_reports_grouped)
+      // make metadata and files match  
+      ch_meta_analysis.map { meta, analysis -> [[id: meta.id], analysis]}
+          .unique().set{ ch_meta_metadata }
+          
+      ch_meta_metadata.join(ch_meta_reports)
       .set { ch_metadata_upload }
 
       ch_metadata_upload.view()
+
+      // generate payload
+      PAYLOAD_QCMETRICS(
+        ch_metadata_upload, '', '', CUSTOM_DUMPSOFTWAREVERSIONS.out.yml.collect(), MULTIQC_ALL.out.data.collect()) 
+
+
+      // ch_meta_analysis
+      // .map { meta, analysis -> [ [ id: meta.id ], analysis ]}
+
+      // ch_meta_analysis.join(ch_meta_reports)
+      // .set { ch_metadata_upload }
+
       // ch_metadata_upload = ch_metadata_upload.concat(ch_metadata_upload_tumour)
 
       // // generate payload
