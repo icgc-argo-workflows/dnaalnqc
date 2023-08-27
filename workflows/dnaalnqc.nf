@@ -334,7 +334,7 @@ workflow DNAALNQC {
       ch_meta_analysis.map { meta, analysis -> [[id: meta.id], analysis]}
           .unique().set{ ch_meta_metadata }
           
-      ch_meta_metadata.join(ch_meta_reports)
+      ch_meta_metadata.join(ch_meta_reports).join(MULTIQC_PARSE.out.multiqc_json)
       .set { ch_metadata_upload }
 
       ch_metadata_upload.view()
