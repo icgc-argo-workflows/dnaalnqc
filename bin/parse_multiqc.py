@@ -50,7 +50,10 @@ file_types = {
      'pct_autosomes_10x': 'PCT_10X',
      'pct_autosomes_30x': 'PCT_30X'
   },
-  'picard_OxoGMetrics': {},
+  'picard_OxoGMetrics': {
+     'oxidation_q_CCG': 'OXIDATION_Q',
+     'oxidation_error_rate_CCG': 'OXIDATION_ERROR_RATE'
+  },
   'picard_QualityYieldMetrics': {
      'yield_bp_q30': 'PF_Q30_BASES'
   }
