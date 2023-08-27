@@ -10,11 +10,10 @@ process PAYLOAD_QCMETRICS {
         'quay.io/biocontainers/multiqc:1.13--pyhdfd78af_0' }"
 
     input:  // input, make update as needed
-      tuple val(meta), path(metadata_analysis), path(files_to_upload)
+      tuple val(meta), path(metadata_analysis), path(files_to_upload), path(multiqc)
       val genome_annotation
       val genome_build
       path pipeline_yml
-      path multiqc
 
     output:  // output, make update as needed
       tuple val(meta), path("*.payload.json"), path("out/*"), emit: payload_files

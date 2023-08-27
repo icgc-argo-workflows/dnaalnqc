@@ -5,7 +5,7 @@
 // A when clause condition is defined in the conf/modules.config to determine if the module should be run
 
 include { GATK4_CALCULATECONTAMINATION as CALCULATECONTAMINATION        } from '../../../modules/nf-core/gatk4/calculatecontamination/main'
-include { GATK4_CALCULATECONTAMINATION as CALCULATECONTAMINATION_N      } from '../../../modules/nf-core/gatk4/calculatecontamination/main'
+include { GATK4_CALCULATECONTAMINATION as CALCULATECONTAMINATION_NORMAL } from '../../../modules/nf-core/gatk4/calculatecontamination/main'
 include { GATK4_GATHERPILEUPSUMMARIES as GATHERPILEUPSUMMARIES_NORMAL   } from '../../../modules/nf-core/gatk4/gatherpileupsummaries/main'
 include { GATK4_GATHERPILEUPSUMMARIES as GATHERPILEUPSUMMARIES_TUMOUR   } from '../../../modules/nf-core/gatk4/gatherpileupsummaries/main'
 include { GATK4_GETPILEUPSUMMARIES as GETPILEUPSUMMARIES_NORMAL         } from '../../../modules/nf-core/gatk4/getpileupsummaries/main'
@@ -80,7 +80,7 @@ workflow CRAM_QC_GATK4_CONTAMINATION {
     CALCULATECONTAMINATION(pileup_table_tumour.join(pileup_table_normal, failOnDuplicate: true, failOnMismatch: true))
 
     // Contamination and segmentation tables created using calculatecontamination on the pileup summary table
-    CALCULATECONTAMINATION_N(pileup_table_normal.map{ meta, table -> [ meta, table, [] ] })
+    CALCULATECONTAMINATION_NORMAL(pileup_table_normal.map{ meta, table -> [ meta + [id:meta.normal_id], table, [] ] })
 
     // Gather versions of all tools used
 
@@ -95,7 +95,7 @@ workflow CRAM_QC_GATK4_CONTAMINATION {
     pileup_table_tumour  // channel: [ meta, table_tumour ]
     contamination_table    = CALCULATECONTAMINATION.out.contamination.map {meta, contamination -> [[id:meta.tumour_id], contamination]}    // channel: [ meta, contamination ]
     segmentation_table     = CALCULATECONTAMINATION.out.segmentation.map {meta, segmentation -> [[id:meta.tumour_id], segmentation]}     // channel: [ meta, segmentation ]
-    contamination_table_normal    = CALCULATECONTAMINATION_N.out.contamination.map {meta, contamination -> [[id:meta.normal_id], contamination]}    // channel: [ meta, contamination ]
-    segmentation_table_normal     = CALCULATECONTAMINATION_N.out.segmentation.map {meta, segmentation -> [[id:meta.normal_id], segmentation]}     // channel: [ meta, segmentation ]
+    contamination_table_normal    = CALCULATECONTAMINATION_NORMAL.out.contamination.map {meta, contamination -> [[id:meta.normal_id], contamination]}    // channel: [ meta, contamination ]
+    segmentation_table_normal     = CALCULATECONTAMINATION_NORMAL.out.segmentation.map {meta, segmentation -> [[id:meta.normal_id], segmentation]}     // channel: [ meta, segmentation ]
     versions = ch_versions // channel: [ versions.yml ]
 }

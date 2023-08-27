@@ -57,7 +57,7 @@ def calculate_md5(file_path):
             md5.update(chunk)
     return md5.hexdigest()
 
-def get_files_info(file_to_upload, date_str, analysis_dict, process_indicator, multiqc=[]):
+def get_files_info(file_to_upload, date_str, analysis_dict, process_indicator, multiqc={}):
     # sampleId = analysis_dict['samples'][0]['sampleId']
     file_info = {
         'fileSize': calculate_size(file_to_upload),
@@ -273,22 +273,6 @@ def prepare_tarball(sampleId, qc_files, tool_list):
         for f in files_to_tar[tool]:
           tar.add(f, arcname=os.path.basename(f))
 
-
-def get_mqc_stats(multiqc, sampleId):
-    mqc_stats = {}
-    for f in sorted(glob(multiqc+'/*.txt')):
-      for tool_metrics in file_types:
-        if f.endswith(tool_metrics+'.txt'):
-          with open(f, 'r') as fn: 
-            mqc_stats[tool_metrics] = []
-            reader = csv.DictReader(fn, delimiter="\t")
-            for row in reader:
-              if not sampleId in row.get('Sample'): continue
-              mqc_stats[tool_metrics].append(row)
-                          
-    return mqc_stats
-
-
 def main():
     """
     Python implementation of tool: payload-gen-qc
@@ -305,7 +289,7 @@ def main():
     parser.add_argument("-s", "--wf-session", dest="wf_session", required=True, help="workflow session ID")
     parser.add_argument("-v", "--wf-version", dest="wf_version", required=True, help="Workflow version")
     parser.add_argument("-p", "--pipeline_yml", dest="pipeline_yml", required=False, help="Pipeline info in yaml")
-    parser.add_argument("-m", "--multiqc", dest="multiqc", required=False, help="multiqc files folder")
+    parser.add_argument("-m", "--multiqc", dest="multiqc", required=False, help="multiqc json file")
 
     args = parser.parse_args()
     
@@ -320,7 +304,8 @@ def main():
     # get tool_specific & aggregated metrics from multiqc
     mqc_stats = {}
     if args.multiqc:
-      mqc_stats = get_mqc_stats(args.multiqc, analysis_dict['samples'][0]['sampleId'])
+      with open(args.multiqc, 'r') as f:
+        mqc_stats = json.load(f)
 
     payload = {
         'analysisType': {
