@@ -108,7 +108,7 @@ def main():
         if file_type in mqc_stats: continue
         mqc_stats[file_type] = []
         with open(fn, 'r') as f:     
-          reader = csv.DictReader(fn, delimiter="\t")
+          reader = csv.DictReader(f, delimiter="\t")
           for row in reader:
             mqc_stats[file_type].append(row)
             mqc_stats['metrics'].update({
