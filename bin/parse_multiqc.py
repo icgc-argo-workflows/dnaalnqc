@@ -91,7 +91,7 @@ def main():
     parser.add_argument("-s", "--sampleId", dest="sampleId", required=True,
                         help="Input sampleId", type=str)
     parser.add_argument("-m", "--multiqc", dest="multiqc", required=True, help="multiqc files folder")
-    parser.add_argument("-q", "--qc_files", dest="qc_files", required=True, help="qc files")
+    parser.add_argument("-q", "--qc_files", dest="qc_files", required=True, type=str, nargs="+", help="qc files")
 
     args = parser.parse_args()
     
