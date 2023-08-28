@@ -78,7 +78,58 @@ def get_mqc_stats(multiqc, sampleId):
                 for f1,f2 in file_types[ftype].items():
                   mqc_stats['metrics'][f1] = row.get(f2)
           
-                          
+    # aggregate fastqc and cutadapt metrics into sample level based on multiqc data
+    if mqc_stats.get('cutadapt'):
+      r1_with_adapters_total = 0
+      r2_with_adapters_total = 0
+      pairs_processed_total = 0
+      pairs_trimmed_total = 0
+      for rg_metrics in mqc_stats['cutadapt']:
+        r1_with_adapters_total += rg_metrics['r1_with_adapters']
+        r2_with_adapters_total += rg_metrics['r2_with_adapters']
+        pairs_processed_total += rg_metrics['pairs_processed']
+        pairs_trimmed_total += rg_metrics['pairs_processed']*rg_metrics['percent_trimmed']
+
+      mqc_stats['metrics'].update({
+        'r1_with_adapters_total': r1_with_adapters_total,
+        'r2_with_adapters_total': r2_with_adapters_total,
+        'percent_trimmed_total': round(pairs_trimmed_total / pairs_processed_total, 2)
+      })
+
+    if mqc_stats.get('fastqc'):
+      total_sequences = []
+      sequences_flagged_as_poor_quality = []
+      percent_gc = []
+      qc_status = {}
+      qc_metrics = ['basic_statistics', 'per_base_sequence_quality', 'per_tile_sequence_quality', 
+                    'per_sequence_quality_scores', 'per_base_sequence_content', 'per_sequence_gc_content', 
+                    'per_base_n_content', 'sequence_length_distribution', 'sequence_duplication_levels', 
+                    'overrepresented_sequences', 'adapter_content']
+      for fn in qc_metrics:
+        qc_status[fn] = set()
+      for rg_metrics in mqc_stats['fastqc']:
+        total_sequences.append(rg_metrics['Total Sequences'])
+        sequences_flagged_as_poor_quality.append(rg_metrics['Sequences flagged as poor quality'])
+        percent_gc.append(rg_metrics["%GC"])
+        for fn in qc_metrics:
+          qc_status[fn].add(rg_metrics[fn])
+      
+      mqc_stats['metrics'].update(
+        {
+          'total_sequences': sum(total_sequences) / len(total_sequences),
+          'sequences_flagged_as_poor_quality': sum(sequences_flagged_as_poor_quality) / len(sequences_flagged_as_poor_quality),
+          'percent_gc': sum(percent_gc) / len(percent_gc)
+        }
+      )
+      
+      for fn in qc_metrics:
+        for status in ['fail', 'warning', 'pass']:          
+          if status in qc_status[fn]:
+            mqc_stats['metrics'].update(
+              {fn: status}
+            )
+            break
+
     return mqc_stats
 
 
@@ -115,7 +166,6 @@ def main():
               'cross_contamination_rate': row.get('contamination'),
               'cross_contamination_error': row.get('error')
             })
-
 
     with open("%s.multiqc_data.json" % (args.sampleId), 'w') as f:
       f.write(json.dumps(mqc_stats, indent=2))
