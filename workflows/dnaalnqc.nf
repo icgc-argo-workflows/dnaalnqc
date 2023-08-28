@@ -220,18 +220,20 @@ workflow DNAALNQC {
     cram_tumour = ch_input_sample_branch.tumour.map{ meta, cram, crai -> [ meta.patient, meta, cram, crai ]}
     
     // Tumour only samples
-    // 1. Group together all tumour samples by patient ID [ patient1, [ meta1, meta2 ], [ cram1, crai1, cram2, crai2 ] ]
+    // 1. Group together all tumour samples by patient ID [ patient1, [ meta1, meta2 ], [ cram1, cram2], [crai1, crai2 ] ]
     cram_tumour_grouped = cram_tumour.groupTuple()
     
     // 2. Join with normal samples, in each channel there is one key per patient now. 
-    // Patients without matched normal end up with: [ patient1, [ meta1, meta2 ], [ cram1, crai1, cram2, crai2 ], null ]
+    // Patients without matched normal end up with: [ patient1, [ meta1, meta2 ], [ cram1, cram2], [crai1, crai2 ], meta3, cram3, crai3 ]
     cram_tumour_joined = cram_tumour_grouped.join(cram_normal, failOnDuplicate: true, remainder: true)
     
     // 3. Filter out entries with last entry null
+    // Patients without matched normal end up with: [ patient1, [ meta1, meta2 ], [ cram1, cram2], [crai1, crai2 ], null ]
     cram_tumour_joined_filtered = cram_tumour_joined.filter{ it ->  !(it.last()) }
     
-    // 4. Transpose [ patient1, [ meta1, meta2 ], [ cram1, crai1, cram2, crai2 ] ] back to [ patient1, meta1, [ cram1, crai1 ], null ] [ patient1, meta2, [ cram2, crai2 ], null ]
-    // and remove patient ID field & null value for further processing [ meta1, [ cram1, crai1 ] ] [ meta2, [ cram2, crai2 ] ]
+    // 4. Transpose [ patient1, [ meta1, meta2 ], [ cram1, cram2], [crai1, crai2 ], null ] 
+    // back to [ patient1, meta1, cram1, crai1, null ] [ patient1, meta2, cram2, crai2, null ]
+    // and remove patient ID field & null value for further processing [ meta1, cram1, crai1] [ meta2, cram2, crai2]
     cram_tumor_only = cram_tumour_joined_filtered.transpose().map{ it -> [it[1], it[2], it[3]] }
 
     // Tumour - normal pairs
@@ -269,7 +271,7 @@ workflow DNAALNQC {
     )
 
     CRAM_QC_CALCONT_NORMAL_ONLY (
-      cram_normal,
+      ch_input_sample_branch.normal,
       fasta.map{ it -> [ [ id:'fasta' ], it ] }, // Remap channel to match module/subworkflow
       fasta_fai.map{ it -> [ [ id:'fasta_fai' ], it ] }, // Remap channel to match module/subworkflow
       fasta_dict.map{ it -> [ [ id:'fasta_dict' ], it ] },
