@@ -1,0 +1,5 @@
+﻿biosample_id,bam_cram
+NA20291,s3://1000genomes-dragen-3.7.6/data/individuals/hg38-graph-based/NA20291/NA20291.bam
+NA20294,s3://1000genomes-dragen-3.7.6/data/individuals/hg38-graph-based/NA20294/NA20294.bam
+NA20296,s3://1000genomes-dragen-3.7.6/data/individuals/hg38-graph-based/NA20296/NA20296.bam
+NA20298,s3://1000genomes-dragen-3.7.6/data/individuals/hg38-graph-based/NA20298/NA20298.bam
