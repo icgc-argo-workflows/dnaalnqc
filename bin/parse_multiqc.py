@@ -101,7 +101,7 @@ def main():
       mqc_stats = get_mqc_stats(args.multiqc, args.sampleId)
 
     # get tool_specific & aggregated metrics from qc_files when they're not retrieved by multiqc
-    for fn in sorted(glob(args.qc_files)):
+    for fn in sorted(args.qc_files):
       # GATK4 calculateContamination
       if fn.endswith('contamination.table'):
         file_type = 'gatk_contamination'
