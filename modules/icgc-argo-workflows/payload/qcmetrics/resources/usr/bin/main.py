@@ -43,8 +43,7 @@ workflow_process_map = {
     'DNA Alignment QC': 'post_aln'
 }
 
-tool_list = ['fastqc', 'cutadapt', 'multiqc', 'CollectMultipleMetrics', 'CollectWgsMetrics', 'CollectHsMetrics', 'stats', 'mosdepth', 'CollectOxoGMetrics']
-file_types = ['fastqc', 'cutadapt', 'samtools_stats', 'picard_wgsmetrics', 'picard_OxoGMetrics', 'picard_QualityYieldMetrics']
+tool_list = ['fastqc', 'cutadapt', 'CollectMultipleMetrics', 'CollectWgsMetrics', 'CollectHsMetrics', 'stats', 'mosdepth', 'CollectOxoGMetrics', 'contamination']
 
 def calculate_size(file_path):
     return os.stat(file_path).st_size
@@ -86,107 +85,53 @@ def get_files_info(file_to_upload, date_str, analysis_dict, process_indicator, m
 
     elif re.match(r'.+?CollectMultipleMetrics\.tgz$', file_to_upload):
         file_type = 'picard_QualityYieldMetrics'
-        file_info.update({'dataType': 'Sequencing QC'})
+        file_info.update({'dataType': 'Aligned Reads QC'})
         file_info['info']['data_subtypes'] = ['Sample Metrics']
-        file_info['info'].update({'analysis_tools': ['Picard/CollectMultipleMetrics']})
+        file_info['info'].update({'analysis_tools': ['Picard:CollectMultipleMetrics']})
         file_info['info'].update({'description': 'Picard tool to collect multiple classes of metrics including CollectAlignmentSummaryMetrics, CollectInsertSizeMetrics, QualityScoreDistribution, MeanQualityByCycle, CollectBaseDistributionByCycle, CollectGcBiasMetrics, RnaSeqMetrics, CollectSequencingArtifactMetrics and CollectQualityYieldMetrics.'})
-
-        # # retrieve qc metrics from multiqc_data
-        # metric_info = multiqc.get('picard_QualityYieldMetrics', [])
-        # metric_info_updated = []
-        # for metric_item in metric_info:
-        #   if not metric_item['Sample'] == sampleId: continue
-        #   metric_info_updated.append(metric_item)
-        # file_info['info'].update({'metrics': metric_info_updated})
-
 
     elif re.match(r'.+?CollectWgsMetrics\.tgz$', file_to_upload):
         file_type = 'picard_wgsmetrics'
-        file_info.update({'dataType': 'Sequencing QC'})
+        file_info.update({'dataType': 'Aligned Reads QC'})
         file_info['info']['data_subtypes'] = ['Sample Metrics']
-        file_info['info'].update({'analysis_tools': ['Picard/CollectWgsMetrics']})
+        file_info['info'].update({'analysis_tools': ['Picard:CollectWgsMetrics']})
         file_info['info'].update({'description': 'Picard tool to collect metrics about coverage and performance of whole genome sequencing (WGS) experiments.'})
-
-        # # retrieve qc metrics from multiqc_data
-        # metric_info = multiqc.get('picard_wgsmetrics', [])
-        # metric_info_updated = []
-        # for metric_item in metric_info:
-        #   if not metric_item['Sample'] == sampleId: continue
-        #   metric_info_updated.append(metric_item)
-        # file_info['info'].update({'metrics': metric_info_updated})
 
     elif re.match(r'.+?CollectHsMetrics\.tgz$', file_to_upload):
         file_type = 'picard_hsmetrics'
-        file_info.update({'dataType': 'Sequencing QC'})
+        file_info.update({'dataType': 'Aligned Reads QC'})
         file_info['info']['data_subtypes'] = ['Sample Metrics']
-        file_info['info'].update({'analysis_tools': ['Picard/CollectHsMetrics']})
+        file_info['info'].update({'analysis_tools': ['Picard:CollectHsMetrics']})
         file_info['info'].update({'description': 'Picard tool to collect hybrid-selection (HS) metrics for targeted sequencing experiments.'})
-
-        # # retrieve qc metrics from multiqc_data
-        # metric_info = multiqc.get('picard_hsmetrics', [])
-        # metric_info_updated = []
-        # for metric_item in metric_info:
-        #   if not metric_item['Sample'] == sampleId: continue
-        #   metric_info_updated.append(metric_item)
-        # file_info['info'].update({'metrics': metric_info_updated})
 
     elif re.match(r'.+?CollectOxoGMetrics\.tgz$', file_to_upload):
         file_type = 'picard_OxoGMetrics'
-        file_info.update({'dataType': 'Sequencing QC'})
+        file_info.update({'dataType': 'Aligned Reads QC'})
         file_info['info']['data_subtypes'] = ['Sample Metrics']
-        file_info['info'].update({'analysis_tools': ['Picard/CollectOxoGMetrics']})
+        file_info['info'].update({'analysis_tools': ['Picard:CollectOxoGMetrics']})
         file_info['info'].update({'description': 'Picard tool to collects metrics quantifying the error rate resulting from oxidative artifacts.'})
-
-        # # retrieve qc metrics from multiqc_data
-        # metric_info = multiqc.get('picard_OxoGMetrics', [])
-        # metric_info_updated = []
-        # for metric_item in metric_info:
-        #   if not metric_item['SAMPLE_ALIAS'] == sampleId: continue
-        #   metric_info_updated.append(metric_item)
-        # file_info['info'].update({'metrics': metric_info_updated})
 
     elif re.match(r'.+?stats\.tgz$', file_to_upload):
         file_type = 'samtools_stats'
-        file_info.update({'dataType': 'Sequencing QC'})
+        file_info.update({'dataType': 'Aligned Reads QC'})
         file_info['info']['data_subtypes'] = ['Sample Metrics']
-        file_info['info'].update({'analysis_tools': ['Samtools/Stats']})
+        file_info['info'].update({'analysis_tools': ['Samtools:stats']})
         file_info['info'].update({'description': 'Samtools to collect comprehensive statistics from alignment file.'})
-
-        # # retrieve qc metrics from multiqc_data
-        # metric_info = multiqc.get('samtools_stats', [])
-        # metric_info_updated = []
-        # for metric_item in metric_info:
-        #   if not metric_item['Sample'] == sampleId: continue
-        #   metric_info_updated.append(metric_item)
-        # file_info['info'].update({'metrics': metric_info_updated})
 
     elif re.match(r'.+?mosdepth\.tgz$', file_to_upload):
         file_type = 'mosdepth'
-        file_info.update({'dataType': 'Sequencing QC'})
+        file_info.update({'dataType': 'Aligned Reads QC'})
         file_info['info']['data_subtypes'] = ['Sample Metrics']
         file_info['info'].update({'analysis_tools': ['Mosdepth']})
         file_info['info'].update({'description': 'Mosdepth performs fast BAM/CRAM depth calculation for WGS, exome, or targeted sequencing.'})
 
 
-    elif re.match(r'.+?multiqc\.tgz$', file_to_upload):
-        file_type = 'multiqc'
-        file_info.update({'dataType': 'Sequencing QC'})
+    elif re.match(r'.+?contamination\.tgz$', file_to_upload):
+        file_type = 'gatk_contamination'
+        file_info.update({'dataType': 'Sample QC'})
         file_info['info']['data_subtypes'] = ['Sample Metrics']
-        file_info['info'].update({'analysis_tools': ['MultiQC']})
-        file_info['info'].update({'description': 'MultiQC to aggregate results from bioinformatics analyses across many samples into a single report.'})
-
-        # # retrieve qc metrics from multiqc_data
-        # metric_info = get_mqc_stats(file_to_upload)
-        # metric_info_updated = []
-        # for metric_item in metric_info:
-        #   metric_item_updated = {}
-        #   for k,v in metric_item.items():
-        #     k_update = k.split("_mqc-generalstats-")[-1]
-        #     metric_item_updated.update(
-        #       {k_update: v} 
-        #     )
-        #   metric_info_updated.append(metric_item_updated)
-        # file_info['info'].update({'metrics': metric_info_updated})
+        file_info['info'].update({'analysis_tools': ['GATK:CalculateContamination']})
+        file_info['info'].update({'description': 'GATK4 tool to calculate the fraction of reads coming from cross-sample contamination.'})
 
     else:
         sys.exit('Error: unknown QC metrics file: %s' % file_to_upload)

@@ -336,7 +336,7 @@ workflow DNAALNQC {
     .groupTuple()
     .set{ ch_meta_reports }
 
-    // Parse the multiqc data
+    // Parse the multiqc data & qc files
     MULTIQC_PARSE (ch_meta_reports, MULTIQC_ALL.out.data.collect())
 
     // upload QC files and metadata to song/score

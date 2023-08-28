@@ -24,7 +24,8 @@ process MULTIQC_PARSE {
     """
     parse_multiqc.py \\
         -m $multiqc \\
-        -s $meta.id
+        -s $meta.id \\
+        -q $qc_files
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

@@ -91,6 +91,7 @@ def main():
     parser.add_argument("-s", "--sampleId", dest="sampleId", required=True,
                         help="Input sampleId", type=str)
     parser.add_argument("-m", "--multiqc", dest="multiqc", required=True, help="multiqc files folder")
+    parser.add_argument("-q", "--qc_files", dest="qc_files", required=True, help="qc files")
 
     args = parser.parse_args()
     
@@ -98,6 +99,22 @@ def main():
     mqc_stats = {}
     if args.multiqc:
       mqc_stats = get_mqc_stats(args.multiqc, args.sampleId)
+
+    # get tool_specific & aggregated metrics from qc_files when they're not retrieved by multiqc
+    for fn in sorted(glob(args.qc_files)):
+      # GATK4 calculateContamination
+      if fn.endswith('contamination.table'):
+        file_type = 'gatk_contamination'
+        if file_type in mqc_stats: continue
+        mqc_stats[file_type] = []
+        with open(fn, 'r') as f:     
+          reader = csv.DictReader(fn, delimiter="\t")
+          for row in reader:
+            mqc_stats[file_type].append(row)
+            mqc_stats['metrics'].update({
+              'cross_contamination_rate': row.get('contamination'),
+              'cross_contamination_error': row.get('error')
+            })
 
 
     with open("%s.multiqc_data.json" % (args.sampleId), 'w') as f:
