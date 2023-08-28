@@ -38,7 +38,7 @@ include { SONG_SCORE_UPLOAD              } from '../subworkflows/icgc-argo-workf
 include { CRAM_QC_MOSDEPTH_SAMTOOLS      } from '../subworkflows/local/cram_qc_mosdepth_samtools/main'
 include { CRAM_QC_GATK4_CONTAMINATION as CRAM_QC_CALCONT_PAIR   } from '../subworkflows/local/cram_qc_gatk4_contamination/main'
 include { CRAM_QC_GATK4_CONTAMINATION_TUMOUR_ONLY as CRAM_QC_CALCONT_TUMOUR_ONLY   } from '../subworkflows/local/cram_qc_gatk4_contamination_tumour_only/main'
-//include { CRAM_QC_GATK4_CONTAMINATION_TUMOUR_ONLY as CRAM_QC_CALCONT_NORMAL_ONLY   } from '../subworkflows/local/cram_qc_gatk4_contamination_tumour_only/main'
+include { CRAM_QC_GATK4_CONTAMINATION_TUMOUR_ONLY as CRAM_QC_CALCONT_NORMAL_ONLY   } from '../subworkflows/local/cram_qc_gatk4_contamination_tumour_only/main'
 include { PICARD_COLLECTOXOGMETRICS      } from '../modules/local/picard/collectoxogmetrics/main'
 include { BAM_QC_PICARD               } from '../subworkflows/local/bam_qc_picard/main'
 
@@ -268,14 +268,25 @@ workflow DNAALNQC {
       intervals_and_num_intervals 
     )
 
+    CRAM_QC_CALCONT_NORMAL_ONLY (
+      cram_normal,
+      fasta.map{ it -> [ [ id:'fasta' ], it ] }, // Remap channel to match module/subworkflow
+      fasta_fai.map{ it -> [ [ id:'fasta_fai' ], it ] }, // Remap channel to match module/subworkflow
+      fasta_dict.map{ it -> [ [ id:'fasta_dict' ], it ] },
+      germline_resource,
+      germline_resource_tbi,
+      intervals_and_num_intervals 
+    )
+
     // Gather QC reports
     ch_reports  = ch_reports.mix(CRAM_QC_CALCONT_PAIR.out.contamination_table)
-    ch_reports  = ch_reports.mix(CRAM_QC_CALCONT_PAIR.out.contamination_table_normal)
+    ch_reports  = ch_reports.mix(CRAM_QC_CALCONT_NORMAL_ONLY.out.contamination_table)
     ch_reports  = ch_reports.mix(CRAM_QC_CALCONT_TUMOUR_ONLY.out.contamination_table)
     
     // Gather used softwares versions
     ch_versions = ch_versions.mix(CRAM_QC_CALCONT_PAIR.out.versions)
     ch_versions = ch_versions.mix(CRAM_QC_CALCONT_TUMOUR_ONLY.out.versions)
+    ch_versions = ch_versions.mix(CRAM_QC_CALCONT_NORMAL_ONLY.out.versions)
 
     //
     // SUBWORKFLOW: Run BAM_QC_PICARD including PICARD_COLLECTHSMETRICS (targeted), PICARD_COLLECTWGSMETRICS (WGS) and PICARD_COLLECTMULTIPLEMETRICS
