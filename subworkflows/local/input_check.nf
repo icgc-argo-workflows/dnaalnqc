@@ -21,20 +21,15 @@ workflow INPUT_CHECK {
 
     emit:
     reads_index                                     // channel: [ val(meta), [ reads, reads_index ] ]
-    // versions = SAMPLESHEET_CHECK.out.versions // channel: [ versions.yml ]
 }
 
 def create_input_channel(LinkedHashMap row) {
     // create meta map
     def meta = [:]
     meta.id    = row.biosample_id
-    meta.status = 1
+    meta.status = row.status ? row.status : 0
+    meta.patient = row.patient ? row.patient : row.biosample_id
     reads_meta = [meta, file(row.bam_cram)]
-
-    // reads_index = SAMTOOLS_INDEX (reads_meta).bai
-    // // add path(s) of the fastq file(s) to the meta map
-    // reads_index_meta = []
-    // reads_index_meta = reads_meta.join(reads_index)
 
     return reads_meta
 }
