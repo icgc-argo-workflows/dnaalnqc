@@ -33,7 +33,9 @@ extra_fn_clean_exts:
 # Run only these modules
 run_modules:
     - picard
+    - gatk
     - samtools
     - mosdepth
+    - verifybamid
 
 

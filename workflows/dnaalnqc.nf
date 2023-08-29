@@ -112,7 +112,7 @@ workflow DNAALNQC {
         UNTARFILES(ch_qc_files.duplicate_metrics)
 
         // Gather QC reports
-        ch_reports  = ch_reports.mix(UNTARFILES.out.files.collect{meta, report -> report})
+        ch_reports  = ch_reports.mix(UNTARFILES.out.files)
         // Gather used softwares versions
         ch_versions = ch_versions.mix(UNTARFILES.out.versions)
 
@@ -139,9 +139,6 @@ workflow DNAALNQC {
     intervals_bed_gz_tbi_combined      = params.no_intervals ? Channel.value([])      : PREPARE_INTERVALS.out.intervals_bed_gz_tbi_combined
 
     // MOSDEPTH don't need any intervals for WGS
-    // intervals_for_mosdepth = params.target ?
-    //     intervals_bed_combined.map{it -> [ [ id:it.baseName ], it ]}.collect() :
-    //     Channel.value([ [ id:'null' ], [] ])
     intervals_for_mosdepth = 
         intervals_bed_combined.map{it -> [ [ id:it.baseName ], it ]}.collect()
 
@@ -350,13 +347,11 @@ workflow DNAALNQC {
       ch_meta_metadata.join(ch_meta_reports).join(MULTIQC_PARSE.out.multiqc_json)
       .set { ch_metadata_upload }
 
-      ch_metadata_upload.view()
-
       // generate payload
       PAYLOAD_QCMETRICS(
         ch_metadata_upload, '', '', CUSTOM_DUMPSOFTWAREVERSIONS.out.yml.collect()) 
 
-    // //SONG_SCORE_UPLOAD(PAYLOAD_QCMETRICS.out.payload_files)
+      SONG_SCORE_UPLOAD(PAYLOAD_QCMETRICS.out.payload_files)
     }
 }
 

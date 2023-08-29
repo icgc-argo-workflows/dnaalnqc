@@ -59,6 +59,7 @@ file_types = {
   }
 }
 
+fra2pct_fields = ['pct_autosomes_15x', 'pct_autosomes_10x', 'pct_autosomes_30x']
 
 def get_mqc_stats(multiqc, sampleId):
     mqc_stats = {
@@ -77,7 +78,15 @@ def get_mqc_stats(multiqc, sampleId):
                 if not ftype == tool_metrics: continue
                 for f1,f2 in file_types[ftype].items():
                   mqc_stats['metrics'][f1] = row.get(f2)
-          
+
+    # convert the fraction to percentage for given fields
+    for fn in fra2pct_fields:
+      if not mqc_stats['metrics'].get(fn): continue
+      new_value = round(mqc_stats['metrics'][fn] * 100, 2)
+      mqc_stats['metrics'].update({
+        fn: new_value
+      })
+
     # aggregate fastqc and cutadapt metrics into sample level based on multiqc data
     if mqc_stats.get('cutadapt'):
       r1_with_adapters_total = 0
