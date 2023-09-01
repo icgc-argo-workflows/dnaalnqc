@@ -77,12 +77,12 @@ def get_mqc_stats(multiqc, sampleId):
               for ftype in file_types.keys():
                 if not ftype == tool_metrics: continue
                 for f1,f2 in file_types[ftype].items():
-                  mqc_stats['metrics'][f1] = row.get(f2)
+                  mqc_stats['metrics'][f1] = round(float(row.get(f2)), 2)
 
     # convert the fraction to percentage for given fields
     for fn in fra2pct_fields:
       if not mqc_stats['metrics'].get(fn): continue
-      new_value = round(mqc_stats['metrics'][fn] * 100, 2)
+      new_value = round(float(mqc_stats['metrics'][fn]) * 100, 2)
       mqc_stats['metrics'].update({
         fn: new_value
       })
@@ -94,21 +94,21 @@ def get_mqc_stats(multiqc, sampleId):
       pairs_processed_total = 0
       pairs_trimmed_total = 0
       for rg_metrics in mqc_stats['cutadapt']:
-        r1_with_adapters_total += rg_metrics['r1_with_adapters']
-        r2_with_adapters_total += rg_metrics['r2_with_adapters']
-        pairs_processed_total += rg_metrics['pairs_processed']
-        pairs_trimmed_total += rg_metrics['pairs_processed']*rg_metrics['percent_trimmed']
+        r1_with_adapters_total += float(rg_metrics['r1_with_adapters'])
+        r2_with_adapters_total += float(rg_metrics['r2_with_adapters'])
+        pairs_processed_total += float(rg_metrics['pairs_processed'])
+        pairs_trimmed_total += float(rg_metrics['pairs_processed'])*float(rg_metrics['percent_trimmed'])
 
       mqc_stats['metrics'].update({
-        'r1_with_adapters_total': r1_with_adapters_total,
-        'r2_with_adapters_total': r2_with_adapters_total,
+        'r1_with_adapters_total': round(r1_with_adapters_total),
+        'r2_with_adapters_total': round(r2_with_adapters_total),
         'percent_trimmed_total': round(pairs_trimmed_total / pairs_processed_total, 2)
       })
 
     if mqc_stats.get('fastqc'):
       total_sequences = []
       sequences_flagged_as_poor_quality = []
-      percent_gc = []
+      gc_content = []
       qc_status = {}
       qc_metrics = ['basic_statistics', 'per_base_sequence_quality', 'per_tile_sequence_quality', 
                     'per_sequence_quality_scores', 'per_base_sequence_content', 'per_sequence_gc_content', 
@@ -117,17 +117,17 @@ def get_mqc_stats(multiqc, sampleId):
       for fn in qc_metrics:
         qc_status[fn] = set()
       for rg_metrics in mqc_stats['fastqc']:
-        total_sequences.append(rg_metrics['Total Sequences'])
-        sequences_flagged_as_poor_quality.append(rg_metrics['Sequences flagged as poor quality'])
-        percent_gc.append(rg_metrics["%GC"])
+        total_sequences.append(float(rg_metrics['Total Sequences']))
+        sequences_flagged_as_poor_quality.append(float(rg_metrics['Sequences flagged as poor quality']))
+        gc_content.append(float(rg_metrics["%GC"])*float(rg_metrics['Total Sequences']))
         for fn in qc_metrics:
           qc_status[fn].add(rg_metrics[fn])
       
       mqc_stats['metrics'].update(
         {
-          'total_sequences': sum(total_sequences) / len(total_sequences),
-          'sequences_flagged_as_poor_quality': sum(sequences_flagged_as_poor_quality) / len(sequences_flagged_as_poor_quality),
-          'percent_gc': sum(percent_gc) / len(percent_gc)
+          'total_sequences': round(sum(total_sequences)),
+          'sequences_flagged_as_poor_quality': round(sum(sequences_flagged_as_poor_quality)),
+          'percent_gc': round(sum(gc_content) / sum(total_sequences),2)
         }
       )
       
@@ -172,8 +172,8 @@ def main():
           for row in reader:
             mqc_stats[file_type].append(row)
             mqc_stats['metrics'].update({
-              'cross_contamination_rate': row.get('contamination'),
-              'cross_contamination_error': row.get('error')
+              'cross_contamination_rate': round(float(row.get('contamination')), 2),
+              'cross_contamination_error': round(float(row.get('error')), 2)
             })
 
     with open("%s.multiqc_data.json" % (args.sampleId), 'w') as f:

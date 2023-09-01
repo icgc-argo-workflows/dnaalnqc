@@ -22,10 +22,39 @@ ch_multiqc_custom_methods_description = params.multiqc_methods_description ? fil
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    Check parameters
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+*/
+// Check input path parameters to see if they exist
+def checkPathParamList = [
+  params.input, params.fasta, params.fasta_fai, params.fasta_dict, params.bait_interval, params.target_interval,
+  params.germline_resource, params.germline_resource_tbi, params.verifybamid2_ud, params.verifybamid2_mu, params.verifybamid2_bed,
+  params.autosome_non_gap
+]
+
+for (param in checkPathParamList) if (param) file(param, checkIfExists: true)
+
+// Fails when no target_interval file is provided when target==true
+if (params.target && !params.target_interval) {
+  error("Please provide target_interval file for target-seq data.")
+}
+
+// Initialize all input file channels
+fasta       = Channel.fromPath(params.fasta).collect()
+fasta_fai   = Channel.fromPath(params.fasta_fai).collect()
+fasta_dict  = Channel.fromPath(params.fasta_dict).collect()
+target_interval  = params.target_interval   ? Channel.fromPath(params.target_interval).collect() : []
+bait_interval    = params.target_interval   ? params.bait_interval  ? Channel.fromPath(params.bait_interval).collect() : Channel.fromPath(params.target_interval).collect() : []
+germline_resource      = params.germline_resource  ? Channel.fromPath(params.germline_resource).collect() : Channel.value([])
+germline_resource_tbi  = params.germline_resource_tbi  ? Channel.fromPath(params.germline_resource_tbi).collect() : Channel.value([])
+verifybamid2_resource  = params.verifybamid2_ud ? Channel.fromPath([params.verifybamid2_ud, params.verifybamid2_mu, params.verifybamid2_bed]).collect() : [[], [], []]
+intervals    = params.target ? params.target_interval : params.autosome_non_gap
+
+/*
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     IMPORT LOCAL MODULES/SUBWORKFLOWS
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
-
 //
 // SUBWORKFLOW: Consisting of a mix of local and nf-core/modules
 //
@@ -55,8 +84,6 @@ include { PREPARE_INTERVALS              } from '../subworkflows/local/prepare_i
 // MODULE: Installed directly from nf-core/modules
 //
 include { MULTIQC as MULTIQC_ALL      } from '../modules/nf-core/multiqc/main'
-include { MULTIQC as MULTIQC_T        } from '../modules/nf-core/multiqc/main'
-include { MULTIQC as MULTIQC_N        } from '../modules/nf-core/multiqc/main'
 include { CUSTOM_DUMPSOFTWAREVERSIONS } from '../modules/nf-core/custom/dumpsoftwareversions/main'
 include { VERIFYBAMID_VERIFYBAMID2    } from '../modules/nf-core/verifybamid/verifybamid2/main'
 include { UNTARFILES                  } from '../modules/nf-core/untarfiles/main'
@@ -82,12 +109,11 @@ workflow DNAALNQC {
         ch_input_sample = INPUT_CHECK (ch_input).reads_index
       } 
       else { exit 1, 'Input samplesheet must be specified for local mode!' }
-    } else if (params.study_id && params.analysis_id_tumour) {
-      ch_input = Channel.of([params.study_id, params.analysis_id_tumour])
+    } else if (params.study_id && params.analysis_ids) {
+      ch_study = Channel.of(params.study_id)
+      ch_analysis_ids = Channel.fromList(params.analysis_ids.split(',') as List)
+      ch_input = ch_study.combine(ch_analysis_ids)
 
-      if (params.analysis_id_normal) {
-        ch_input = ch_input.concat(Channel.of([params.study_id, params.analysis_id_normal]))
-      }
       STAGE_INPUT_ALN(ch_input)
       ch_input_sample = STAGE_INPUT_ALN.out.sample_files
       ch_meta_analysis = STAGE_INPUT_ALN.out.meta_analysis
@@ -97,9 +123,9 @@ workflow DNAALNQC {
       if (params.qc_analysis_ids) {
         // study = Channel.of(params.study_id)
         // params.qc_analysis_ids.split(',').view()
-        // qc_analysis = Channel.fromList(params.qc_analysis_ids.split(','))
-        // ch_input_qc = study.combine(qc_analysis)
-        ch_input_qc = [params.study_id, params.qc_analysis_ids]
+        ch_qc_analysis_ids = Channel.fromList(params.qc_analysis_ids.split(',') as List)
+        ch_input_qc = ch_study.combine(ch_qc_analysis_ids)
+        // ch_input_qc = [params.study_id, params.qc_analysis_ids]
 
         STAGE_INPUT_QC(ch_input_qc)
         ch_input_qc_files = STAGE_INPUT_QC.out.sample_files
@@ -117,18 +143,7 @@ workflow DNAALNQC {
         ch_versions = ch_versions.mix(UNTARFILES.out.versions)
 
       }
-    } else { exit 1, 'study_id & analysis_id_tumour must be specified for rdpc mode!' }
-
-    // // Initialize all input file channels
-    fasta       = Channel.fromPath(params.fasta).collect()
-    fasta_fai   = Channel.fromPath(params.fasta_fai).collect()
-    fasta_dict  = Channel.fromPath(params.fasta_dict).collect()
-    bait_interval    = params.bait_interval   ? Channel.fromPath(params.bait_interval).collect() : []
-    target_interval  = params.target_interval ? Channel.fromPath(params.target_interval).collect() : []
-    germline_resource      = params.germline_resource  ? Channel.fromPath(params.germline_resource).collect() : Channel.value([])
-    germline_resource_tbi  = params.germline_resource_tbi  ? Channel.fromPath(params.germline_resource_tbi).collect() : Channel.value([])
-    verifybamid2_resource  = Channel.fromPath([params.verifybamid2_ud, params.verifybamid2_mu, params.verifybamid2_bed]).collect()
-    intervals    = params.target ? params.target_interval : params.autosome_non_gap
+    } else { exit 1, 'study_id & analysis_ids must be specified for rdpc mode!' }
   
     // Build intervals if needed
     PREPARE_INTERVALS(fasta_fai, intervals, params.no_intervals)
@@ -210,6 +225,7 @@ workflow DNAALNQC {
       normal: it[0].status == 0
       tumour: it[0].status == 1
     }
+
     // Normal samples
     cram_normal = ch_input_sample_branch.normal.map{ meta, cram, crai -> [ meta.patient, meta, cram, crai ]}
 
@@ -246,6 +262,9 @@ workflow DNAALNQC {
 
         tuple([ meta, [ normal[2], tumour[2] ], [ normal[3], tumour[3] ] ])
     }
+    ch_input_sample.view()
+    ch_input_sample_branch.normal.view()
+    cram_pair.view()
 
     CRAM_QC_CALCONT_PAIR (
       cram_pair,

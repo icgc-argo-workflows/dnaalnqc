@@ -27,8 +27,10 @@ def create_input_channel(LinkedHashMap row) {
     // create meta map
     def meta = [:]
     meta.id    = row.biosample_id
-    meta.status = row.status ? row.status : 0
+    meta.sample = row.biosample_id
+    meta.status = row.status ? row.status.toInteger() : 0
     meta.patient = row.patient ? row.patient : row.biosample_id
+    meta.sex = row.sex ? row.sex : 'NA'
     reads_meta = [meta, file(row.bam_cram)]
 
     return reads_meta
