@@ -4,7 +4,7 @@
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
-def summary_params = NfcoreSchema.paramsSummaryMap(workflow, params)
+// def summary_params = NfcoreSchema.paramsSummaryMap(workflow, params)
 
 // Validate input parameters
 // WorkflowDnaalnqc.initialise(params, log)
@@ -370,7 +370,7 @@ workflow DNAALNQC {
       PAYLOAD_QCMETRICS(
         ch_metadata_upload, '', '', CUSTOM_DUMPSOFTWAREVERSIONS.out.yml.collect()) 
 
-      SONG_SCORE_UPLOAD(PAYLOAD_QCMETRICS.out.payload_files)
+      //SONG_SCORE_UPLOAD(PAYLOAD_QCMETRICS.out.payload_files)
     }
 }
 
@@ -380,15 +380,15 @@ workflow DNAALNQC {
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
-workflow.onComplete {
-    if (params.email || params.email_on_fail) {
-        NfcoreTemplate.email(workflow, params, summary_params, projectDir, log, multiqc_report)
-    }
-    NfcoreTemplate.summary(workflow, params, log)
-    if (params.hook_url) {
-        NfcoreTemplate.IM_notification(workflow, params, summary_params, projectDir, log)
-    }
-}
+// workflow.onComplete {
+//     if (params.email || params.email_on_fail) {
+//         NfcoreTemplate.email(workflow, params, summary_params, projectDir, log, multiqc_report)
+//     }
+//     NfcoreTemplate.summary(workflow, params, log)
+//     if (params.hook_url) {
+//         NfcoreTemplate.IM_notification(workflow, params, summary_params, projectDir, log)
+//     }
+// }
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
