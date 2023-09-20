@@ -22,7 +22,7 @@ The workflow has adopted [nf-core](https://nf-co.re/) framework and best practic
 
    ```bash
    nextflow run icgc-argo-workflows/dnaalnqc \
-     -profile test,docker \
+     -profile test,standard \
      --outdir <OUTDIR>
    ```
 
@@ -30,7 +30,7 @@ The workflow has adopted [nf-core](https://nf-co.re/) framework and best practic
 
    ```bash
    nextflow run icgc-argo-workflows/dnaalnqc \
-     -profile test_rdpc_qa,docker \
+     -profile test_rdpc_qa,standard \
      --api_token <YOUR_API_TOKEN> \
      --reference_base <REFERENCE_BASE> \
      --outdir <OUTDIR>
