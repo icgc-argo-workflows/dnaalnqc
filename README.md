@@ -97,7 +97,7 @@ Now, you can run the workflow using:
 
 ```bash
 nextflow run icgc-argo-workflows/dnaalnqc \
-   -profile resource,<docker/singularity> \
+   -profile resource,<standard/singularity> \
    --local_mode true \
    --input samplesheet.csv \
    --reference_base <REFERENCE_BASE> \
@@ -108,7 +108,7 @@ nextflow run icgc-argo-workflows/dnaalnqc \
 You can run the workflow in RDPC mode by using:
 ```bash
 nextflow run icgc-argo-workflows/dnaalnqc \
-  -profile <rdpc,rdpc_qa,rdpc_dev>,<docker/singularity> \
+  -profile <rdpc,rdpc_qa,rdpc_dev>,<standard/singularity> \
   --local_mode false \
   --study_id <STUDY_ID> \
   --analysis_ids <ANALYSIS_IDS> \
