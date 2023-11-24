@@ -39,8 +39,8 @@ import io
 from math import log10, isnan
 
 workflow_process_map = {
-    'Pre Alignment QC': 'pre_aln',
-    'DNA Alignment QC': 'post_aln'
+    'Pre Alignment QC': 'prealn',
+    'DNA Alignment QC': 'aln'
 }
 
 tool_list = ['fastqc', 'cutadapt', 'CollectMultipleMetrics', 'CollectWgsMetrics', 'CollectHsMetrics', 'stats', 'mosdepth', 'CollectOxoGMetrics', 'contamination']
@@ -228,8 +228,6 @@ def main():
                         help="Input metadata analysis", type=str)
     parser.add_argument("-f", "--files_to_upload", dest="files_to_upload", type=str, required=True,
                         nargs="+", help="All files to upload")
-    parser.add_argument("-g", "--genome_annotation", dest="genome_annotation", default="", help="Genome annotation")
-    parser.add_argument("-b", "--genome_build", dest="genome_build", default="", help="Genome build")
     parser.add_argument("-w", "--wf-name", dest="wf_name", required=True, help="Workflow name")
     parser.add_argument("-s", "--wf-session", dest="wf_session", required=True, help="workflow session ID")
     parser.add_argument("-v", "--wf-version", dest="wf_version", required=True, help="Workflow version")
@@ -268,19 +266,18 @@ def main():
                     'input_analysis_id': analysis_dict.get('analysisId')
                 }
             ],
-            'info': {
-              'pipeline_info': pipeline_info,
-              'metrics': mqc_stats.get('metrics', None)
-            }
+            'pipeline_info': pipeline_info,
+            'metrics': mqc_stats.get('metrics', None)
         },
         'files': [],
         'experiment': analysis_dict.get('experiment'),
         'samples': get_sample_info(analysis_dict.get('samples'))
     }
-    if args.genome_build:
-      payload['workflow']['genome_build'] = args.genome_build
-    if args.genome_annotation:
-      payload['workflow']['genome_annotation'] = args.genome_annotation
+    if analysis_dict.get('workflow'):
+      if analysis_dict['workflow'].get('genome_build'): 
+         payload['workflow']['genome_build'] = analysis_dict['workflow'].get('genome_build')
+      if analysis_dict['workflow'].get('genome_annotation'):
+         payload['workflow']['genome_annotation'] = analysis_dict['workflow'].get('genome_annotation')
 
     # pass `info` dict from seq_experiment payload to new payload
     if 'info' in analysis_dict and isinstance(analysis_dict['info'], dict):

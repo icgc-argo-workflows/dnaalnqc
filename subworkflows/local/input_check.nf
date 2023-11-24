@@ -26,10 +26,10 @@ workflow INPUT_CHECK {
 def create_input_channel(LinkedHashMap row) {
     // create meta map
     def meta = [:]
-    meta.id    = row.biosample_id
-    meta.sample = row.biosample_id
+    meta.id    = row.sample
+    meta.sample = row.sample
     meta.status = row.status ? row.status.toInteger() : 0
-    meta.patient = row.patient ? row.patient : row.biosample_id
+    meta.patient = row.patient ? row.patient : row.sample
     meta.sex = row.sex ? row.sex : 'NA'
     reads_meta = [meta, file(row.bam_cram)]
 

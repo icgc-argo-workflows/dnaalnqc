@@ -11,8 +11,6 @@ process PAYLOAD_QCMETRICS {
 
     input:  // input, make update as needed
       tuple val(meta), path(metadata_analysis), path(files_to_upload), path(multiqc)
-      val genome_annotation
-      val genome_build
       path pipeline_yml
 
     output:  // output, make update as needed
@@ -27,8 +25,6 @@ process PAYLOAD_QCMETRICS {
       main.py \
         -f ${files_to_upload} \
         -a ${metadata_analysis} \
-        -g "${genome_annotation}" \
-        -b "${genome_build}" \
         -w "${workflow.manifest.name}" \
         -s ${workflow.sessionId} \
         -v ${workflow.manifest.version} \

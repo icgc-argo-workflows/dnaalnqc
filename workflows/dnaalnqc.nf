@@ -58,11 +58,11 @@ intervals    = params.target ? params.target_interval : params.autosome_non_gap
 //
 // SUBWORKFLOW: Consisting of a mix of local and nf-core/modules
 //
-include { MULTIQC_PARSE                  } from '../modules/local/multiqc_parse'
 include { INPUT_CHECK                    } from '../subworkflows/local/input_check'
 include { STAGE_INPUT as STAGE_INPUT_ALN } from '../subworkflows/icgc-argo-workflows/stage_input/main'
 include { STAGE_INPUT as STAGE_INPUT_QC  } from '../subworkflows/icgc-argo-workflows/stage_input/main'
 include { PAYLOAD_QCMETRICS              } from '../modules/icgc-argo-workflows/payload/qcmetrics/main'
+include { PREP_METRICS                   } from '../modules/icgc-argo-workflows/prep/metrics/main'
 include { SONG_SCORE_UPLOAD              } from '../subworkflows/icgc-argo-workflows/song_score_upload/main'
 include { CRAM_QC_MOSDEPTH_SAMTOOLS      } from '../subworkflows/local/cram_qc_mosdepth_samtools/main'
 include { CRAM_QC_GATK4_CONTAMINATION as CRAM_QC_CALCONT_PAIR   } from '../subworkflows/local/cram_qc_gatk4_contamination/main'
@@ -116,13 +116,11 @@ workflow DNAALNQC {
 
       STAGE_INPUT_ALN(ch_input)
       ch_input_sample = STAGE_INPUT_ALN.out.sample_files
-      ch_meta_analysis = STAGE_INPUT_ALN.out.meta_analysis
+      ch_metadata = STAGE_INPUT_ALN.out.meta_analysis
       ch_versions = ch_versions.mix(STAGE_INPUT_ALN.out.versions)
 
       // pull qc metrics from other workflows if qc_analysis_ids are provided
       if (params.qc_analysis_ids) {
-        // study = Channel.of(params.study_id)
-        // params.qc_analysis_ids.split(',').view()
         ch_qc_analysis_ids = Channel.fromList(params.qc_analysis_ids.split(',') as List)
         ch_input_qc = ch_study.combine(ch_qc_analysis_ids)
         // ch_input_qc = [params.study_id, params.qc_analysis_ids]
@@ -262,9 +260,6 @@ workflow DNAALNQC {
 
         tuple([ meta, [ normal[2], tumour[2] ], [ normal[3], tumour[3] ] ])
     }
-    ch_input_sample.view()
-    ch_input_sample_branch.normal.view()
-    cram_pair.view()
 
     CRAM_QC_CALCONT_PAIR (
       cram_pair,
@@ -353,22 +348,22 @@ workflow DNAALNQC {
     .set{ ch_meta_reports }
 
     // Parse the multiqc data & qc files
-    MULTIQC_PARSE (ch_meta_reports, MULTIQC_ALL.out.data.collect())
+    PREP_METRICS (ch_meta_reports, MULTIQC_ALL.out.data.collect())
 
     // upload QC files and metadata to song/score
     if (!params.local_mode) {
       //
       // Match the QC files with the metadata info
       //
-      ch_meta_analysis.map { meta, analysis -> [[id: meta.id], analysis]}
+      ch_metadata.map { meta, metadata -> [[id: meta.id], metadata]}
           .unique().set{ ch_meta_metadata }
           
-      ch_meta_metadata.join(ch_meta_reports).join(MULTIQC_PARSE.out.multiqc_json)
+      ch_meta_metadata.join(ch_meta_reports).join(PREP_METRICS.out.metrics_json)
       .set { ch_metadata_upload }
 
       // generate payload
       PAYLOAD_QCMETRICS(
-        ch_metadata_upload, '', '', CUSTOM_DUMPSOFTWAREVERSIONS.out.yml.collect()) 
+        ch_metadata_upload, CUSTOM_DUMPSOFTWAREVERSIONS.out.yml.collect()) 
 
       //SONG_SCORE_UPLOAD(PAYLOAD_QCMETRICS.out.payload_files)
     }
