@@ -55,34 +55,33 @@ intervals    = params.target ? params.target_interval : params.autosome_non_gap
     IMPORT LOCAL MODULES/SUBWORKFLOWS
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
-//
-// SUBWORKFLOW: Consisting of a mix of local and nf-core/modules
-//
 include { INPUT_CHECK                    } from '../subworkflows/local/input_check'
-include { STAGE_INPUT as STAGE_INPUT_ALN } from '../subworkflows/icgc-argo-workflows/stage_input/main'
-include { STAGE_INPUT as STAGE_INPUT_QC  } from '../subworkflows/icgc-argo-workflows/stage_input/main'
-include { PAYLOAD_QCMETRICS              } from '../modules/icgc-argo-workflows/payload/qcmetrics/main'
-include { PREP_METRICS                   } from '../modules/icgc-argo-workflows/prep/metrics/main'
-include { SONG_SCORE_UPLOAD              } from '../subworkflows/icgc-argo-workflows/song_score_upload/main'
 include { CRAM_QC_MOSDEPTH_SAMTOOLS      } from '../subworkflows/local/cram_qc_mosdepth_samtools/main'
 include { CRAM_QC_GATK4_CONTAMINATION as CRAM_QC_CALCONT_PAIR   } from '../subworkflows/local/cram_qc_gatk4_contamination/main'
 include { CRAM_QC_GATK4_CONTAMINATION_TUMOUR_ONLY as CRAM_QC_CALCONT_TUMOUR_ONLY   } from '../subworkflows/local/cram_qc_gatk4_contamination_tumour_only/main'
 include { CRAM_QC_GATK4_CONTAMINATION_TUMOUR_ONLY as CRAM_QC_CALCONT_NORMAL_ONLY   } from '../subworkflows/local/cram_qc_gatk4_contamination_tumour_only/main'
 include { PICARD_COLLECTOXOGMETRICS      } from '../modules/local/picard/collectoxogmetrics/main'
-include { BAM_QC_PICARD               } from '../subworkflows/local/bam_qc_picard/main'
-
+include { BAM_QC_PICARD                  } from '../subworkflows/local/bam_qc_picard/main'
 // Build intervals if needed
 include { PREPARE_INTERVALS              } from '../subworkflows/local/prepare_intervals/main'
+
+/*
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    IMPORT ARGO MODULES/SUBWORKFLOWS
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+*/
+
+include { STAGE_INPUT as STAGE_INPUT_ALN } from '../subworkflows/icgc-argo-workflows/stage_input/main'
+include { STAGE_INPUT as STAGE_INPUT_QC  } from '../subworkflows/icgc-argo-workflows/stage_input/main'
+include { PAYLOAD_QCMETRICS              } from '../modules/icgc-argo-workflows/payload/qcmetrics/main'
+include { PREP_METRICS                   } from '../modules/icgc-argo-workflows/prep/metrics/main'
+include { SONG_SCORE_UPLOAD              } from '../subworkflows/icgc-argo-workflows/song_score_upload/main'
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     IMPORT NF-CORE MODULES/SUBWORKFLOWS
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
-
-//
-// MODULE: Installed directly from nf-core/modules
-//
 include { MULTIQC as MULTIQC_ALL      } from '../modules/nf-core/multiqc/main'
 include { CUSTOM_DUMPSOFTWAREVERSIONS } from '../modules/nf-core/custom/dumpsoftwareversions/main'
 include { VERIFYBAMID_VERIFYBAMID2    } from '../modules/nf-core/verifybamid/verifybamid2/main'
