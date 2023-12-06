@@ -1,0 +1,39 @@
+name: "prep_metrics"
+description: Aggregate all metrics into one single json from multiqc reports and various qc files to be used by payload generation tool.
+keywords:
+  - prepare metrics json
+tools:
+  - "prep_metrics":
+      description: |
+        A simple wrapper written in `Python` to Aggregate all metrics into one single json from multiqc reports and various qc files to be used by payload generation tool. 
+      licence: ["MIT"]
+
+input:  // input, make update as needed
+    tuple val(meta), path(qc_files)
+    path multiqc
+
+  output:  // output, make update as needed
+    tuple val(meta), path('*.json')   , emit: metrics_json
+    path "versions.yml", emit: versions
+
+input:
+  - qc_files:
+      type: file
+      description: various qc files 
+  - multiqc:
+      type: file
+      description: multiqc files
+
+
+output:
+  - metrics_json:
+      type: file
+      description: Aggregated metrics in JSON format
+  - versions:
+      type: file
+      description: File containing software versions
+      pattern: "versions.yml"
+
+authors:
+  - "@lindaxiang"
+

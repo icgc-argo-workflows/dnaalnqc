@@ -1,4 +1,4 @@
-process MULTIQC_PARSE {
+process PREP_METRICS {
     tag "$meta.id"
     label 'process_single'
 
@@ -12,7 +12,8 @@ process MULTIQC_PARSE {
     path multiqc
 
     output:
-    tuple val(meta), path('*.json')   , emit: multiqc_json
+    tuple val(meta), path('*.argo_metrics.json')   , emit: metrics_json
+    tuple val(meta), path('*.metrics.json')   , emit: ga4gh_metrics_json, optional: true
     path "versions.yml", emit: versions
 
     when:
@@ -22,7 +23,7 @@ process MULTIQC_PARSE {
     
 
     """
-    parse_multiqc.py \\
+    main.py \\
         -m $multiqc \\
         -s $meta.id \\
         -q $qc_files

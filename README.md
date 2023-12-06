@@ -79,12 +79,12 @@ Depending on where the input data are coming from and output data are sending to
 
 ### Inputs
 #### Local mode
-First, prepare a samplesheet with your input data that looks as following:
+First, prepare a sample sheet with your input data that looks as following example:
 
-`samplesheet.csv`:
+`sample_sheet.csv`:
 
 ```csv
-biosample_id,bam_cram,patient(optional),status(optional),sex(optional)
+sample,bam_cram,patient(optional),status(optional),sex(optional)
 CONTROL_REP1_SAMPLE0,CONTROL_REP_0.bam,CONTROL_REP1_DONOR,0,XX
 CONTROL_REP1_SAMPLE1,CONTROL_REP_1.bam,CONTROL_REP1_DONOR,1,XX
 ```
@@ -99,7 +99,7 @@ Now, you can run the workflow using:
 nextflow run icgc-argo-workflows/dnaalnqc \
    -profile resource,<standard/singularity> \
    --local_mode true \
-   --input samplesheet.csv \
+   --input sample_sheet.csv \
    --reference_base <REFERENCE_BASE> \
    --outdir <OUTDIR>
 ```
@@ -123,7 +123,7 @@ nextflow run icgc-argo-workflows/dnaalnqc \
 ### Outputs
 Upon completion, you can find the aggregated QC metrics under directory:
 ```
-/path/to/outdir/metrics/<sample_id>.multiqc_data.json
+/path/to/outdir/prep_metrics/<sample_id>.argo_metrics.json
 ```
 
 ## Credits

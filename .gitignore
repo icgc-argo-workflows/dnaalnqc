@@ -2,8 +2,10 @@
 .nextflow*
 work/
 data/
+output/
 results/
 .DS_Store
 testing/
 testing*
+TEST*
 *.pyc

@@ -7,7 +7,12 @@
                 "icgc-argo-workflows": {
                     "payload/qcmetrics": {
                         "branch": "main",
-                        "git_sha": "e77dfd3f5a27c355ed42633a896d868a00f89ecf",
+                        "git_sha": "681bcc1563700f8322be1ba65305a85e169f0909",
+                        "installed_by": ["modules"]
+                    },
+                    "prep/metrics": {
+                        "branch": "main",
+                        "git_sha": "27b616a007c54d0e059d39345b575e7e3801ef72",
                         "installed_by": ["modules"]
                     },
                     "prep/sample": {
@@ -149,15 +154,6 @@
                         "branch": "master",
                         "git_sha": "911696ea0b62df80e900ef244d7867d177971f73",
                         "installed_by": ["modules"]
-                    }
-                }
-            },
-            "subworkflows": {
-                "nf-core": {
-                    "bam_qc_picard": {
-                        "branch": "master",
-                        "git_sha": "dedc0e31087f3306101c38835d051bf49789445a",
-                        "installed_by": ["subworkflows"]
                     }
                 }
             }
