@@ -26,7 +26,7 @@ process SONG_GET {
     def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${analysis_id}"
     def song_url = params.song_url_download ?: params.song_url
-    def accessToken = params.api_token ?: "`cat /tmp/rdpc_secret/secret`"
+    def accessToken = task.ext.api_download_token ?: "`cat /tmp/rdpc_secret/secret`"
     def VERSION = params.song_container_version ?: '5.0.2'
     """
     export CLIENT_SERVER_URL=${song_url}

@@ -1,0 +1,23 @@
+name: "cleanup"
+description: 
+keywords:
+  - bash
+  - delete
+  - file
+  - directory
+tools:
+  - "cleanup":
+      description: "cleanup is a in-house tool to cleanup working directories at the end of the workflow."
+      licence: ["MIT"]
+
+input:
+  - files_to_delete:
+      type: file
+      description: List of input files to delete
+  - virtual_dep_flag:
+      type: string
+      description: Set dependence flag when to run the step
+
+authors:
+  - "@junjun-zhang"
+  - "@lindaxiang"

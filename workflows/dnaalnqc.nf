@@ -101,46 +101,52 @@ workflow DNAALNQC {
     ch_versions = Channel.empty()
     ch_reports = Channel.empty()
 
-    // Read in samplesheet, validate and stage input files
-    if ( params.local_mode ) {
-      if (params.input) {
-        ch_input = Channel.fromPath(params.input)
-        ch_input_sample = INPUT_CHECK (ch_input).reads_index
-      } 
-      else { exit 1, 'Input samplesheet must be specified for local mode!' }
-    } else if (params.study_id && params.analysis_ids) {
-      ch_study = Channel.of(params.study_id)
-      ch_analysis_ids = Channel.fromList(params.analysis_ids.split(',') as List)
-      ch_input = ch_study.combine(ch_analysis_ids)
+    // Stage input files
+    STAGE_INPUT_ALN(params.study_id, params.analysis_ids, params.input)
+    ch_input_sample = STAGE_INPUT_ALN.out.meta_files
+    ch_metadata = STAGE_INPUT_ALN.out.meta_analysis
+    ch_versions = ch_versions.mix(STAGE_INPUT_ALN.out.versions)
 
-      STAGE_INPUT_ALN(ch_input)
-      ch_input_sample = STAGE_INPUT_ALN.out.sample_files
-      ch_metadata = STAGE_INPUT_ALN.out.meta_analysis
-      ch_versions = ch_versions.mix(STAGE_INPUT_ALN.out.versions)
+    // // Read in samplesheet, validate and stage input files
+    // if ( params.local_mode ) {
+    //   if (params.input) {
+    //     ch_input = Channel.fromPath(params.input)
+    //     ch_input_sample = INPUT_CHECK (ch_input).reads_index
+    //   } 
+    //   else { exit 1, 'Input samplesheet must be specified for local mode!' }
+    // } else if (params.study_id && params.analysis_ids) {
+    //   ch_study = Channel.of(params.study_id)
+    //   ch_analysis_ids = Channel.fromList(params.analysis_ids.split(',') as List)
+    //   ch_input = ch_study.combine(ch_analysis_ids)
 
-      // pull qc metrics from other workflows if qc_analysis_ids are provided
-      if (params.qc_analysis_ids) {
-        ch_qc_analysis_ids = Channel.fromList(params.qc_analysis_ids.split(',') as List)
-        ch_input_qc = ch_study.combine(ch_qc_analysis_ids)
-        // ch_input_qc = [params.study_id, params.qc_analysis_ids]
+    //   STAGE_INPUT_ALN(ch_input)
+    //   ch_input_sample = STAGE_INPUT_ALN.out.sample_files
+    //   ch_metadata = STAGE_INPUT_ALN.out.meta_analysis
+    //   ch_versions = ch_versions.mix(STAGE_INPUT_ALN.out.versions)
 
-        STAGE_INPUT_QC(ch_input_qc)
-        ch_input_qc_files = STAGE_INPUT_QC.out.sample_files
+    //   // pull qc metrics from other workflows if qc_analysis_ids are provided
+    //   if (params.qc_analysis_ids) {
+    //     ch_qc_analysis_ids = Channel.fromList(params.qc_analysis_ids.split(',') as List)
+    //     ch_input_qc = ch_study.combine(ch_qc_analysis_ids)
+    //     // ch_input_qc = [params.study_id, params.qc_analysis_ids]
+
+    //     STAGE_INPUT_QC(ch_input_qc)
+    //     ch_input_qc_files = STAGE_INPUT_QC.out.sample_files
         
-        ch_input_qc_files.branch {
-          duplicate_metrics: it[0].qc_tools.split(',').contains('biobambam2:bammarkduplicates2')
-        }.set{ch_qc_files}
+    //     ch_input_qc_files.branch {
+    //       duplicate_metrics: it[0].qc_tools.split(',').contains('biobambam2:bammarkduplicates2')
+    //     }.set{ch_qc_files}
         
-        // untar the qc tgz file
-        UNTARFILES(ch_qc_files.duplicate_metrics)
+    //     // untar the qc tgz file
+    //     UNTARFILES(ch_qc_files.duplicate_metrics)
 
-        // Gather QC reports
-        ch_reports  = ch_reports.mix(UNTARFILES.out.files)
-        // Gather used softwares versions
-        ch_versions = ch_versions.mix(UNTARFILES.out.versions)
+    //     // Gather QC reports
+    //     ch_reports  = ch_reports.mix(UNTARFILES.out.files)
+    //     // Gather used softwares versions
+    //     ch_versions = ch_versions.mix(UNTARFILES.out.versions)
 
-      }
-    } else { exit 1, 'study_id & analysis_ids must be specified for rdpc mode!' }
+    //   }
+    // } else { exit 1, 'study_id & analysis_ids must be specified for rdpc mode!' }
   
     // Build intervals if needed
     PREPARE_INTERVALS(fasta_fai, intervals, params.no_intervals)

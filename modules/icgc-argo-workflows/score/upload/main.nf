@@ -1,5 +1,4 @@
 
-
 process SCORE_UPLOAD {
     tag "${analysis_id}"
     label 'process_medium'
@@ -29,7 +28,7 @@ process SCORE_UPLOAD {
     def score_url = params.score_url_upload ?: params.score_url
     def transport_parallel = params.transport_parallel ?: task.cpus
     def transport_mem = params.transport_mem ?: "2"
-    def accessToken = params.api_token ?: "`cat /tmp/rdpc_secret/secret`"
+    def accessToken = task.ext.api_upload_token ?: "`cat /tmp/rdpc_secret/secret`"
     def VERSION = params.score_container_version ?: '5.8.1'
     """
     export METADATA_URL=${song_url}

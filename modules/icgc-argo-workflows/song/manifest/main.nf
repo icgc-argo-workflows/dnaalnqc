@@ -1,4 +1,3 @@
-
 process SONG_MANIFEST {
     tag "${analysis_id}"
     label 'process_single'
@@ -26,7 +25,7 @@ process SONG_MANIFEST {
     script:
     def args = task.ext.args ?: ''
     def song_url = params.song_url_upload ?: params.song_url
-    def accessToken = params.api_token ?: "`cat /tmp/rdpc_secret/secret`"
+    def accessToken = task.ext.api_upload_token ?: "`cat /tmp/rdpc_secret/secret`"
     def VERSION = params.song_container_version ?: '5.0.2'
     def study_id = "${meta.study_id}"
     """
