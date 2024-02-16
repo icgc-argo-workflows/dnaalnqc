@@ -362,10 +362,8 @@ workflow DNAALNQC {
     if (params.cleanup) {
       // Gather files to remove   
       ch_files = Channel.empty()
-      ch_files = ch_files.mix(STAGE_INPUT_ALN.out.meta_files)
-      ch_files = ch_files.mix(STAGE_INPUT_ALN.out.meta_analysis)  
-      ch_files.map{ meta, files -> files}
-      .unique()
+      ch_files = ch_files.mix(STAGE_INPUT_ALN.out.meta_files) 
+      ch_files.map{ meta, file1, file2 -> [file1, file2]}
       .set { ch_files_to_remove1 }
 
       PAYLOAD_QCMETRICS.out.payload_files
