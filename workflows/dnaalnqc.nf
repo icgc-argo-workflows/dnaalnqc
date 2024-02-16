@@ -355,22 +355,50 @@ workflow DNAALNQC {
     // Parse the multiqc data & qc files
     PREP_METRICS (ch_meta_reports, MULTIQC_ALL.out.data.collect())
 
-    // upload QC files and metadata to song/score
-    if (!params.local_mode) {
-      //
-      // Match the QC files with the metadata info
-      //
-      ch_metadata.map { meta, metadata -> [[id: meta.id], metadata]}
-          .unique().set{ ch_meta_metadata }
-          
-      ch_meta_metadata.join(ch_meta_reports).join(PREP_METRICS.out.metrics_json)
-      .set { ch_metadata_upload }
+    // Combine channels to determine upload status and payload creation
+    // make metadata and files match  
+    STAGE_INPUT_ALN.out.meta_analysis.map { meta, metadata -> [[id: meta.sample, study_id: meta.study_id], metadata]}
+        .unique().set{ ch_meta_metadata }
+  
+    ch_meta_metadata.join(ch_meta_reports).join(PREP_METRICS.out.metrics_json)
+    .set { ch_metadata_files }
 
-      // generate payload
-      PAYLOAD_QCMETRICS(
-        ch_metadata_upload, CUSTOM_DUMPSOFTWAREVERSIONS.out.yml.collect()) 
+    STAGE_INPUT_ALN.out.upRdpc.combine(ch_metadata_files)
+    .map{upRdpc, meta, metadata, files, metrics -> 
+    [[id: meta.id, study_id: meta.study_id, upRdpc: upRdpc],
+      metadata, files, metrics]}
+    .branch{
+      upload: it[0].upRdpc
+    }.set{ch_metadata_files_status}
 
-      //SONG_SCORE_UPLOAD(PAYLOAD_QCMETRICS.out.payload_files)
+    // generate payload
+    PAYLOAD_QCMETRICS(
+        ch_metadata_files_status, CUSTOM_DUMPSOFTWAREVERSIONS.out.yml.collect()) 
+
+    SONG_SCORE_UPLOAD(PAYLOAD_QCMETRICS.out.payload_files)
+    
+
+    // cleanup the files if specified
+    if (params.cleanup) {
+      // Gather files to remove   
+      ch_files = Channel.empty()
+      ch_files = ch_files.mix(STAGE_INPUT_ALN.out.meta_files)
+      ch_files = ch_files.mix(STAGE_INPUT_ALN.out.meta_analysis)  
+      ch_files.map{ meta, files -> files}
+      .unique()
+      .set { ch_files_to_remove1 }
+
+      PAYLOAD_QCMETRICS.out.payload_files
+      .map {meta, payload, files -> files}
+      .unique()
+      .set { ch_files_to_remove2 }
+
+      ch_files_to_remove = Channel.empty()
+      ch_files_to_remove = ch_files_to_remove.mix(MULTIQC.out.report)
+      ch_files_to_remove = ch_files_to_remove.mix(MULTIQC.out.data)
+      ch_files_to_remove = ch_files_to_remove.mix(ch_files_to_remove1)
+      ch_files_to_remove = ch_files_to_remove.mix(ch_files_to_remove2)
+      CLEANUP(ch_files_to_remove.unique().collect(), SONG_SCORE_UPLOAD.out.analysis_id)    
     }
 }
 
