@@ -288,7 +288,7 @@ workflow DNAALNQC {
     //
     // LOCAL SUBWORKFLOW: Run BAM_QC_PICARD including PICARD_COLLECTHSMETRICS (targeted, nf-core module), 
     // PICARD_COLLECTWGSMETRICS (WGS, local moduel) and PICARD_COLLECTMULTIPLEMETRICS (nf-core module)
-    // 
+    // When update nf-core modules, ensure the local moduel is not accidentally updated.
     ch_bam_bai_bait_target = params.target ?
         ch_input_sample.combine(bait_interval).combine(target_interval) :
         ch_input_sample.map {meta, cram, crai -> [meta, cram, crai, [], []]}
@@ -309,7 +309,7 @@ workflow DNAALNQC {
     ch_versions = ch_versions.mix(BAM_QC_PICARD.out.versions)
 
     //
-    // MODULE: MultiQC
+    // NF-Core MODULE: MultiQC
     //
     ch_multiqc = Channel.empty()
     ch_multiqc = ch_multiqc.mix(ch_reports.collect{meta, report -> report}).ifEmpty([])
