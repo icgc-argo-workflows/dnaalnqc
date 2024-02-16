@@ -348,7 +348,7 @@ workflow DNAALNQC {
     // Group QC files by sampleId
     ch_reports
     .transpose()
-    .map { meta, files -> [[id: meta.id], files] }
+    .map { meta, files -> [[id: meta.id, study_id: meta.study_id], files] }
     .groupTuple()
     .set{ ch_meta_reports }
 
