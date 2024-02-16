@@ -76,7 +76,7 @@ include { STAGE_INPUT as STAGE_INPUT_QC  } from '../subworkflows/icgc-argo-workf
 include { PAYLOAD_QCMETRICS              } from '../modules/icgc-argo-workflows/payload/qcmetrics/main'
 include { PREP_METRICS                   } from '../modules/icgc-argo-workflows/prep/metrics/main'
 include { SONG_SCORE_UPLOAD              } from '../subworkflows/icgc-argo-workflows/song_score_upload/main'
-
+include { CLEANUP                        } from '../modules/icgc-argo-workflows/cleanup/main'
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     IMPORT NF-CORE MODULES/SUBWORKFLOWS
@@ -107,46 +107,25 @@ workflow DNAALNQC {
     ch_metadata = STAGE_INPUT_ALN.out.meta_analysis
     ch_versions = ch_versions.mix(STAGE_INPUT_ALN.out.versions)
 
-    // // Read in samplesheet, validate and stage input files
-    // if ( params.local_mode ) {
-    //   if (params.input) {
-    //     ch_input = Channel.fromPath(params.input)
-    //     ch_input_sample = INPUT_CHECK (ch_input).reads_index
-    //   } 
-    //   else { exit 1, 'Input samplesheet must be specified for local mode!' }
-    // } else if (params.study_id && params.analysis_ids) {
-    //   ch_study = Channel.of(params.study_id)
-    //   ch_analysis_ids = Channel.fromList(params.analysis_ids.split(',') as List)
-    //   ch_input = ch_study.combine(ch_analysis_ids)
+    // don't enable this feature for now
+    // // pull qc metrics from other workflows if qc_analysis_ids are provided
+    // if (params.qc_analysis_ids) {
+    //   STAGE_INPUT_QC(params.study_id, params.qc_analysis_ids, '')
+    //   ch_input_qc_files = STAGE_INPUT_QC.out.meta_files
+      
+    //   ch_input_qc_files.branch {
+    //     duplicate_metrics: it[0].qc_tools.split(',').contains('biobambam2:bammarkduplicates2')
+    //   }.set{ch_qc_files}
+      
+    //   // untar the qc tgz file
+    //   UNTARFILES(ch_qc_files.duplicate_metrics)
 
-    //   STAGE_INPUT_ALN(ch_input)
-    //   ch_input_sample = STAGE_INPUT_ALN.out.sample_files
-    //   ch_metadata = STAGE_INPUT_ALN.out.meta_analysis
-    //   ch_versions = ch_versions.mix(STAGE_INPUT_ALN.out.versions)
+    //   // Gather QC reports
+    //   ch_reports  = ch_reports.mix(UNTARFILES.out.files)
+    //   // Gather used softwares versions
+    //   ch_versions = ch_versions.mix(UNTARFILES.out.versions)
+    // }
 
-    //   // pull qc metrics from other workflows if qc_analysis_ids are provided
-    //   if (params.qc_analysis_ids) {
-    //     ch_qc_analysis_ids = Channel.fromList(params.qc_analysis_ids.split(',') as List)
-    //     ch_input_qc = ch_study.combine(ch_qc_analysis_ids)
-    //     // ch_input_qc = [params.study_id, params.qc_analysis_ids]
-
-    //     STAGE_INPUT_QC(ch_input_qc)
-    //     ch_input_qc_files = STAGE_INPUT_QC.out.sample_files
-        
-    //     ch_input_qc_files.branch {
-    //       duplicate_metrics: it[0].qc_tools.split(',').contains('biobambam2:bammarkduplicates2')
-    //     }.set{ch_qc_files}
-        
-    //     // untar the qc tgz file
-    //     UNTARFILES(ch_qc_files.duplicate_metrics)
-
-    //     // Gather QC reports
-    //     ch_reports  = ch_reports.mix(UNTARFILES.out.files)
-    //     // Gather used softwares versions
-    //     ch_versions = ch_versions.mix(UNTARFILES.out.versions)
-
-    //   }
-    // } else { exit 1, 'study_id & analysis_ids must be specified for rdpc mode!' }
   
     // Build intervals if needed
     PREPARE_INTERVALS(fasta_fai, intervals, params.no_intervals)
@@ -174,7 +153,7 @@ workflow DNAALNQC {
     }
 
     //
-    // MODULE: Run PICARD_COLLECTOXOGMETRICS
+    // MODULE: Run LOCAL MODULE PICARD_COLLECTOXOGMETRICS
     //
     PICARD_COLLECTOXOGMETRICS (
       ch_input_sample,
@@ -307,7 +286,8 @@ workflow DNAALNQC {
     ch_versions = ch_versions.mix(CRAM_QC_CALCONT_NORMAL_ONLY.out.versions)
 
     //
-    // SUBWORKFLOW: Run BAM_QC_PICARD including PICARD_COLLECTHSMETRICS (targeted), PICARD_COLLECTWGSMETRICS (WGS) and PICARD_COLLECTMULTIPLEMETRICS
+    // LOCAL SUBWORKFLOW: Run BAM_QC_PICARD including PICARD_COLLECTHSMETRICS (targeted, nf-core module), 
+    // PICARD_COLLECTWGSMETRICS (WGS, local moduel) and PICARD_COLLECTMULTIPLEMETRICS (nf-core module)
     // 
     ch_bam_bai_bait_target = params.target ?
         ch_input_sample.combine(bait_interval).combine(target_interval) :
