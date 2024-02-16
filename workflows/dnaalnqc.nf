@@ -394,8 +394,8 @@ workflow DNAALNQC {
       .set { ch_files_to_remove2 }
 
       ch_files_to_remove = Channel.empty()
-      ch_files_to_remove = ch_files_to_remove.mix(MULTIQC.out.report)
-      ch_files_to_remove = ch_files_to_remove.mix(MULTIQC.out.data)
+      ch_files_to_remove = ch_files_to_remove.mix(MULTIQC_ALL.out.report)
+      ch_files_to_remove = ch_files_to_remove.mix(MULTIQC_ALL.out.data)
       ch_files_to_remove = ch_files_to_remove.mix(ch_files_to_remove1)
       ch_files_to_remove = ch_files_to_remove.mix(ch_files_to_remove2)
       CLEANUP(ch_files_to_remove.unique().collect(), SONG_SCORE_UPLOAD.out.analysis_id)    
