@@ -15,7 +15,7 @@ The workflow has adopted [nf-core](https://nf-co.re/) framework and best practic
 
 2. Install [`Docker`](https://docs.docker.com/engine/installation/).
 
-3. Stage the required [reference files](#references) 
+3. Stage the required [reference files](#references)
 
 ## Quick start
 1. Test the workflow running in `Local` mode on a minimal dataset with a single command:
@@ -55,26 +55,38 @@ Depending on where the input data are coming from and output data are sending to
 - Reference genome: 
   - GRCh38 reference genome fasta file. The file can be downloaded by:
     ```bash
-    wget https://object.cancercollaboratory.org:9080/swift/v1/genomics-public-data/reference-genome/GRCh38_hla_decoy_ebv/GRCh38_hla_decoy_ebv.fa
+    wget https://swengbioinfo.blob.core.windows.net/genomics-public-data/reference-genome/GRCh38_hla_decoy_ebv/GRCh38_hla_decoy_ebv.fa
     ``` 
 
   - GRCh38 reference genome fasta index file. The file can be downloaded by:
     ```bash
-    wget https://object.cancercollaboratory.org:9080/swift/v1/genomics-public-data/reference-genome/GRCh38_hla_decoy_ebv/GRCh38_hla_decoy_ebv.fa.fai
+    wget https://swengbioinfo.blob.core.windows.net/genomics-public-data/reference-genome/GRCh38_hla_decoy_ebv/GRCh38_hla_decoy_ebv.fa.fai
     ```
 
   - GRCh38 reference genome sequence dictionary file. The file can be downloaded by:
     ```bash
-    wget https://object.cancercollaboratory.org:9080/swift/v1/genomics-public-data/reference-genome/GRCh38_hla_decoy_ebv/GRCh38_hla_decoy_ebv.dict
+    wget https://swengbioinfo.blob.core.windows.net/genomics-public-data/reference-genome/GRCh38_hla_decoy_ebv/GRCh38_hla_decoy_ebv.dict
     ```
 - GATK resources: 
   - `germline_resource` and index files. The files can be downloaded by:
     ```bash
-    wget https://object.cancercollaboratory.org:9080/swift/v1/genomics-public-data/gatk-resources/af-only-gnomad.pass-only.biallelic.snp.hg38.vcf.gz
-    wget https://object.cancercollaboratory.org:9080/swift/v1/genomics-public-data/gatk-resources/af-only-gnomad.pass-only.biallelic.snp.hg38.vcf.gz.tbi
+    wget https://swengbioinfo.blob.core.windows.net/genomics-public-data/gatk-resources/af-only-gnomad.pass-only.biallelic.snp.hg38.vcf.gz
+    wget https://swengbioinfo.blob.core.windows.net/genomics-public-data/gatk-resources/af-only-gnomad.pass-only.biallelic.snp.hg38.vcf.gz.tbi
     ``` 
 - Autosome non-gap regions
   - `autosome_non_gap` bed file was downloaded from [NPM-sample-qc](https://raw.githubusercontent.com/c-BIG/NPM-sample-qc/master/resources/autosomes_non_gap_regions.bed) and staged under project folder [assets](https://github.com/icgc-argo-workflows/dnaalnqc/tree/main/assets)
+
+> **NOTE**
+> Please stage the reference files into the reference directory <REFERENCE_BASE> with the following folder structure
+```bash
+<REFERENCE_BASE>
+├── GRCh38_hla_decoy_ebv.dict
+├── GRCh38_hla_decoy_ebv.fa
+├── GRCh38_hla_decoy_ebv.fa.fai
+├── gatk_resource
+│   ├── af-only-gnomad.pass-only.biallelic.snp.hg38.vcf.gz
+│   └── af-only-gnomad.pass-only.biallelic.snp.hg38.vcf.gz.tbi
+```
 
 
 ### Inputs
@@ -84,9 +96,9 @@ First, prepare a sample sheet with your input data that looks as following examp
 `sample_sheet.csv`:
 
 ```csv
-sample,bam_cram,patient(optional),status(optional),sex(optional)
-CONTROL_REP1_SAMPLE0,CONTROL_REP_0.bam,CONTROL_REP1_DONOR,0,XX
-CONTROL_REP1_SAMPLE1,CONTROL_REP_1.bam,CONTROL_REP1_DONOR,1,XX
+sample,bam_cram,bai_crai(optional),patient(optional),status(optional),sex(optional)
+CONTROL_REP1_SAMPLE0,CONTROL_REP_0.bam,CONTROL_REP_0.bam.bai,CONTROL_REP1_DONOR,0,XX
+CONTROL_REP1_SAMPLE1,CONTROL_REP_1.bam,CONTROL_REP_1.bam,bai,CONTROL_REP1_DONOR,1,XX
 ```
 
 Each row represents an aligned BAM or CRAM from a sample.
