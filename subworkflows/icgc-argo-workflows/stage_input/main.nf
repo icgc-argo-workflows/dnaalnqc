@@ -2,6 +2,9 @@
 include { SONG_SCORE_DOWNLOAD          } from '../../icgc-argo-workflows/song_score_download/main'
 include { PREP_SAMPLE                  } from '../../../modules/icgc-argo-workflows/prep/sample/main'
 include { CHECKINPUT                   } from '../../../modules/icgc-argo-workflows/checkinput/main'
+include { SAMTOOLS_INDEX as BAM_INDEX  } from '../../../modules/icgc-argo-workflows/samtools/index/main'
+include { SAMTOOLS_INDEX as CRAM_INDEX } from '../../../modules/icgc-argo-workflows/samtools/index/main'
+include { TABIX_TABIX                  } from '../../../modules/icgc-argo-workflows/tabix/tabix/main'
 
 workflow STAGE_INPUT {
 
@@ -55,8 +58,7 @@ workflow STAGE_INPUT {
         exit 1, "When no API_TOKEN is provided, a local samplesheet must be provided."
       }
     }
-    //Collect meta,data files and analysis_json
-    //Two channels for meta,files and meta,analysis_json will be refined afterwards
+    //Collect meta,data files and analysis_json from new samplesheet.csv and handle approrpiately
     analysis_input
     .collectFile(keepHeader: true, name: 'sample_sheet.csv')
     .splitCsv(header:true)
@@ -76,7 +78,7 @@ workflow STAGE_INPUT {
            experiment:row.experiment,
            single_end : row.single_end.toBoolean()
            ], 
-           [file(row.fastq_1), file(row.fastq_2)],
+           [file(row.fastq_1,checkIfExists: true), file(row.fastq_2,checkIfExists: true)],
            row.analysis_json
            )
        } else if (row.analysis_type == "sequencing_experiment" && row.single_end.toLowerCase() == 'true') {
@@ -94,7 +96,7 @@ workflow STAGE_INPUT {
            experiment:row.experiment,
            single_end : row.single_end.toBoolean()
            ], 
-           [file(row.fastq_1)],
+           [file(row.fastq_1,checkIfExists: true)],
            row.analysis_json
            ) 
       } else if (row.analysis_type == "sequencing_alignment") {
@@ -108,8 +110,8 @@ workflow STAGE_INPUT {
           status:row.status.toInteger(),
           genome_build:row.genome_build,
           experiment:row.experiment,
-          data_type:'cram'], 
-          [file(row.cram), file(row.crai)],
+          data_type: "${row.bam_cram}".replaceAll(/^.*\./,"").toLowerCase()], 
+          [file(row.bam_cram,checkIfExists: true), row.bai_crai],
           row.analysis_json
           )
       }
@@ -126,7 +128,7 @@ workflow STAGE_INPUT {
           genome_build:row.genome_build,
           experiment:row.experiment,
           data_type:'vcf'],
-          [file(row.vcf), file(row.tbi)],
+          [file(row.vcf,checkIfExists: true), row.tbi],
           row.analysis_json
           )
       }
@@ -143,28 +145,19 @@ workflow STAGE_INPUT {
           genome_build:row.genome_build,
           experiment:row.experiment,
           data_type:'tgz'],
-          [file(row.qc_file)],
+          [file(row.qc_file,checkIfExists: true)],
           row.analysis_json
           )
       }
     }
-    .set { ch_input_sample }
+    .set {ch_input_sample}
 
-    //We want to still have meta when analysis_json doesn't exist
-    ch_input_sample.map{ meta,files,analysis ->
-      if (analysis){
-        tuple([meta,file(analysis)])
-      } else {
-        tuple([meta,null])
-      }
-    }
-    .unique{it[1]}
-    .set{ ch_meta_analysis }
+    // ch_input_sample.view{"sample_sheet output: $it"}
 
-    //Reorganize files as "sequencing_experiment expected input is tuple while other types are flat"
+    //Reorganize files as flat tuple except "sequencing_experiment
     ch_input_sample.map{ meta,files,analysis ->
       if (meta.analysis_type == "sequencing_experiment"){
-        tuple([meta,files])
+        tuple([meta,files]) //tuple([meta,[read1,read2]])
       } else if (meta.analysis_type == "sequencing_alignment") {
         tuple([meta,files[0],files[1]])
       } else if (meta.analysis_type == "variant_calling") {
@@ -172,12 +165,63 @@ workflow STAGE_INPUT {
       } else if (meta.analysis_type == "qc_metrics") {
         tuple([meta,files[0]])
       }
-    }.set{ch_meta_files}
+    }.branch{ //identify files that require indexing
+      bam_to_index : it[0].analysis_type=='sequencing_alignment' && it[2].isEmpty() && it[0].data_type=='bam'
+        return tuple([it[0],it[1]])
+      cram_to_index : it[0].analysis_type=='sequencing_alignment' && it[2].isEmpty() && it[0].data_type=='cram'
+        return tuple([it[0],it[1]])
+      vcf_to_index : it[0].analysis_type=='variant_calling' && it[2].isEmpty()
+        return tuple([it[0],it[1]])
+      indexed : (it[0].analysis_type=='sequencing_alignment' && ! it[2].isEmpty()) | (it[0].analysis_type=='variant_calling' && ! it[2].isEmpty())
+        return tuple([it[0],it[1],it[2]])      
+      others: (it[0].analysis_type=='sequencing_experiment') | (it[0].analysis_type=='qc_metrics')
+        return tuple([it[0],it[1]])
+    }.set{ch_index_split}
+
+    // ch_index_split.bam_to_index.view{"ch_index_split output: $it"}
+
+    //Perform indexiing
+    BAM_INDEX(ch_index_split.bam_to_index)
+    CRAM_INDEX(ch_index_split.cram_to_index)
+    TABIX_TABIX(ch_index_split.vcf_to_index)
+
+    BAM_INDEX.out.bai.view{"BAM_index output: $it"}
+
+    //Combine BAM and BAI into single channel
+    ch_index_split.bam_to_index.join(BAM_INDEX.out.bai).set{indexed_bam}
+    indexed_bam.view{"indexed_bam output: $it"}
+    
+    //Combine CRAM and CRAI into single channel
+    ch_index_split.cram_to_index.join(CRAM_INDEX.out.crai).set{indexed_cram}
+
+    //Combine VCF and TBI into single channel
+    ch_index_split.vcf_to_index.join(TABIX_TABIX.out.tbi).set{indexed_vcf}
+
+    //Combine newly indexed files, previously indexed and others into single channel
+    Channel.empty()
+    .mix(indexed_bam)
+    .mix(indexed_cram)
+    .mix(indexed_vcf)
+    .mix(ch_index_split.indexed)
+    .mix(ch_index_split.others)
+    .set{ch_meta_files}
+
+
+    //We want to still have meta when analysis_json doesn't exist
+    ch_input_sample.map{ meta,files,analysis ->
+      if (analysis){
+        tuple([meta,file(analysis,checkIfExists: true)])
+      } else {
+        tuple([meta,null])
+      }
+    }
+    .unique{it[1]}
+    .set{ ch_meta_analysis }
 
     emit:
     meta_analysis = ch_meta_analysis // channel: [ val(meta), analysis_json]
     meta_files  = ch_meta_files      // channel: [ val(meta), [ files ] ]
-    upRdpc = upRdpc_flag
+    upRdpc = upRdpc_flag // [boolean]
     
     versions = ch_versions                   // channel: [ versions.yml ]
 }

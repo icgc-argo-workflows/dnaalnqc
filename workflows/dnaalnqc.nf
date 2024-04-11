@@ -104,6 +104,7 @@ workflow DNAALNQC {
     // Stage input files
     STAGE_INPUT_ALN(params.study_id, params.analysis_ids, params.input)
     ch_input_sample = STAGE_INPUT_ALN.out.meta_files
+    // ch_input_sample.view {"Subworkflow output: $it"}
     ch_metadata = STAGE_INPUT_ALN.out.meta_analysis
     ch_versions = ch_versions.mix(STAGE_INPUT_ALN.out.versions)
 

@@ -337,8 +337,9 @@ def check_samplesheet(file_in, file_out):
                 logger.critical(f"{str(error)} On line {i + 2}.")
                 sys.exit(1)
         checker.validate_unique_fastq()
-        for col in["sample","study_id","sex","patient","experiment","status","analysis_json"]:
-            checker.validate_common_values(col)
+        #Check unnncessary for prealnqc
+        #for col in["sample","study_id","sex","patient","experiment","status","analysis_json"]:
+        #    checker.validate_common_values(col)
         for col in ["lane"]:
             checker.validate_unique_values(col)
     

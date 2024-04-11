@@ -10,7 +10,7 @@ import logging
 import sys
 from collections import Counter
 from pathlib import Path
-
+import os
 logger = logging.getLogger()
 
 
@@ -37,8 +37,8 @@ class RowChecker:
         sex_col = 'sex',
         status_col = 'status',
         sample_col = 'sample',
-        cram_col = 'cram',
-        crai_col = 'crai',
+        bam_cram_col = 'bam_cram',
+        bai_crai_col = 'bai_crai',
         experiment_col = 'experiment',
         genome_build_col = "genome_build",
         analysis_json_col = 'analysis_json',
@@ -66,8 +66,8 @@ analysis_type,study_id,patient,sex,status,sample,lane,fastq_1,fastq_2,read_group
         self._sex_col = sex_col
         self._status_col = status_col
         self._sample_col = sample_col
-        self._cram_col = cram_col
-        self._crai_col = crai_col
+        self._bam_cram_col = bam_cram_col
+        self._bai_crai_col = bai_crai_col
         self._experiment_col = experiment_col
         self._genome_build_col = genome_build_col
         self._analysis_json_col = analysis_json_col
@@ -90,8 +90,8 @@ analysis_type,study_id,patient,sex,status,sample,lane,fastq_1,fastq_2,read_group
         self._validate_patient(row) if row.get(self._patient_col) else ""
         self._validate_status(row) if row.get(self._status_col) else ""
         self._validate_sample(row)
-        self._validate_cram(row)
-        self._validate_crai(row)
+        self._validate_bam_cram(row)
+        self._validate_bai_crai(row) if row.get(self._bai_crai_col) else ""
         self._validate_experiment(row) if row.get(self._experiment_col) else ""
         self._validate_genome_build(row) if row.get(self._genome_build_col) else ""
         self._validate_analysis_json(row) if row.get(self._analysis_json_col) else ""
@@ -103,8 +103,8 @@ analysis_type,study_id,patient,sex,status,sample,lane,fastq_1,fastq_2,read_group
             "sex" : row[self._sex_col] if row.get(self._sex_col) else "NA",
             "status" : row[self._status_col] if row.get(self._status_col) else "0",
             "sample" : row[self._sample_col],
-            "cram" : row[self._cram_col],
-            "crai" : row[self._crai_col],
+            "bam_cram" : row[self._bam_cram_col],
+            "bai_crai" : row[self._bai_crai_col] if row.get(self._bai_crai_col) else None,
             "experiment": row[self._experiment_col] if row.get(self._experiment_col) else "WGS",
             "genome_build": row[self._genome_build_col] if row.get(self._genome_build_col) else "GRCh38",
             "analysis_json": row[self._analysis_json_col] if row.get(self._analysis_json_col) else None
@@ -150,21 +150,19 @@ analysis_type,study_id,patient,sex,status,sample,lane,fastq_1,fastq_2,read_group
         if len(row[self._sample_col]) <= 0:
             raise AssertionError("'sample' input is required.")
     
-    def _validate_cram(self, row):
+    def _validate_bam_cram(self, row):
         """Assert that expected cram is correct."""
-        if len(row[self._cram_col]) <= 0:
-            raise AssertionError("'cram' input is required.")
-        if not row[self._cram_col].endswith(".cram"):
-            raise AssertionError("'cram' input format is incorrect, ensure file ends with '.cram'")
+        if len(row[self._bam_cram_col]) <= 0:
+            raise AssertionError("'bam_cram' input is required.")
+        if not row[self._bam_cram_col].endswith(".cram") and not row[self._bam_cram_col].endswith(".bam"):
+            raise AssertionError("'bam_cram' input format is incorrect, ensure file ends with '.bam' or '.cram'")
 
-    def _validate_crai(self, row):
+    def _validate_bai_crai(self, row):
         """Assert that expected crai is correct."""
-        if len(row[self._crai_col]) <= 0:
-            raise AssertionError("'crai' input is required.")
-        if not row[self._crai_col].endswith(".crai"):
-            raise AssertionError("'crai' input format is incorrect, ensure file ends with '.crai'")
-        if row[self._crai_col].split("/")[-1].replace(".cram.crai","")!=row[self._cram_col].split("/")[-1].replace(".cram",""):
-            raise AssertionError("'cram' and 'crai' file name bodies do not match.")
+        if not row[self._bai_crai_col].endswith(".crai") and not row[self._bai_crai_col].endswith(".bai"):
+            raise AssertionError("'bai_crai' input format is incorrect, ensure file ends with '.crai' or '.bai'")
+        if row[self._bai_crai_col].split("/")[-1].replace(".cram.crai","").replace(".bam.bai","")!=row[self._bam_cram_col].split("/")[-1].replace(".cram","").replace(".bam",""):
+            raise AssertionError("'bam_cram' and 'bai_crai' file name bodies do not match.")
 
     def _validate_experiment(self, row):
         """Assert that expected Experiment is correct."""
@@ -191,7 +189,7 @@ analysis_type,study_id,patient,sex,status,sample,lane,fastq_1,fastq_2,read_group
         """
         Assert a single unique value exists in array
         """
-        if len(set([z[col] for z in self.modified]))!=len([z[col] for z in self.modified]):
+        if len(set([z[col] for z in self.modified if z[col] is not None]))!=len([z[col] for z in self.modified if z[col] is not None]):
                 raise AssertionError("Errors duplicates values detected for '%s'. Each row should have an unique value" % (col))
                 sys.exit(1)
 
@@ -255,7 +253,7 @@ def check_samplesheet(file_in, file_out):
     analysis_type,study_id,patient,sex,status,sample,cram,crai,genome_build,analysis_json
     sequencing_alignment,TEST-QA,DO262466,XY,1,SA622744,TEST-QA.DO262466.SA622744.wxs.20210712.aln.cram,TEST-QA.DO262466.SA622744.wxs.20210712.aln.cram.crai,WXS,hg38,4f6d6ddf-3759-4a30-ad6d-df37591a3033.analysis.json
     """
-    required_columns = {"sample","cram","crai"}
+    required_columns = {"sample","bam_cram"}
     conditional_columns = {"study_id","sex","patient","status","experiment","analysis_json"}
 
     # See https://docs.python.org/3.9/library/csv.html#id3 to read up on `newline=""`.
@@ -275,9 +273,10 @@ def check_samplesheet(file_in, file_out):
                 logger.critical(f"{str(error)} On line {i + 2}.")
                 sys.exit(1)
 
-        for col in["sample","study_id","sex","patient","experiment","status","analysis_json"]:
-            checker.validate_common_values(col)
-        for col in ["cram","crai"]:
+        # Check unnecessary for gerrmlinevar 
+        #for col in["sample","study_id","sex","patient","experiment","status","analysis_json"]:
+        #    checker.validate_common_values(col)
+        for col in ["bam_cram","bai_crai"]:
             checker.validate_unique_values(col)
 
     header = checker.modified[0].keys()

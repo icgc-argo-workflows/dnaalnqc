@@ -1,3 +1,3 @@
-patient,status,sample,cram,crai
+patient,status,sample,bam_cram,bai_crai
 test,0,cfa409d0-3236-5f07-8634-a2c0de74c8f2,https://raw.githubusercontent.com/icgc-argo-workflows/gatk-mutect2-variant-calling/main/tests/data/HCC1143_BL-mini-N/cfa409d0-3236-5f07-8634-a2c0de74c8f2.5.20190927.wgs.grch38.bam,https://raw.githubusercontent.com/icgc-argo-workflows/gatk-mutect2-variant-calling/main/tests/data/HCC1143_BL-mini-N/cfa409d0-3236-5f07-8634-a2c0de74c8f2.5.20190927.wgs.grch38.bam.bai
 test,1,8f879c15-14da-593d-bb76-db866f81ab3a,https://raw.githubusercontent.com/icgc-argo-workflows/gatk-mutect2-variant-calling/main/tests/data/HCC1143-mini-T/8f879c15-14da-593d-bb76-db866f81ab3a.6.20190927.wgs.grch38.bam,https://raw.githubusercontent.com/icgc-argo-workflows/gatk-mutect2-variant-calling/main/tests/data/HCC1143-mini-T/8f879c15-14da-593d-bb76-db866f81ab3a.6.20190927.wgs.grch38.bam.bai

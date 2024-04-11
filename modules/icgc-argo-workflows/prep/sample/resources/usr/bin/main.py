@@ -344,7 +344,7 @@ def main():
           sys.exit("Error: not supported input file format")
       with open(output_sample_sheet, 'w', newline='') as f:
         csvwriter = csv.writer(f, delimiter=',')
-        csvwriter.writerow(['analysis_type','study_id','patient','sex','status','sample','cram','crai',"genome_build",'experiment', 'analysis_json'])
+        csvwriter.writerow(['analysis_type','study_id','patient','sex','status','sample','bam_cram','bai_crai',"genome_build",'experiment', 'analysis_json'])
         csvwriter.writerow([analysis_type, study_id, donor_id, sex, status, sample_id, cram, crai, genome_build,experiment, metadata_json])
 
     elif analysis_type == 'variant_calling':
