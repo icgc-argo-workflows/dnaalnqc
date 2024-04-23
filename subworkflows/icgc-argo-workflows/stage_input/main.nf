@@ -1,130 +1,227 @@
 
 include { SONG_SCORE_DOWNLOAD          } from '../../icgc-argo-workflows/song_score_download/main'
-include { PREP_SAMPLE                  } from '../../../modules/icgc-argo-workflows/prep/sample/main.nf'
+include { PREP_SAMPLE                  } from '../../../modules/icgc-argo-workflows/prep/sample/main'
+include { CHECKINPUT                   } from '../../../modules/icgc-argo-workflows/checkinput/main'
+include { SAMTOOLS_INDEX as BAM_INDEX  } from '../../../modules/icgc-argo-workflows/samtools/index/main'
+include { SAMTOOLS_INDEX as CRAM_INDEX } from '../../../modules/icgc-argo-workflows/samtools/index/main'
+include { TABIX_TABIX                  } from '../../../modules/icgc-argo-workflows/tabix/tabix/main'
 
 workflow STAGE_INPUT {
 
     take:
-    study_analysis  // channel: study_id, analysis_id
-
+    study_id // channel: study_id
+    analysis_ids // channel: analysis_ids
+    samplesheet  // channel: samplesheet
+    
     main:
     ch_versions = Channel.empty()
 
-    SONG_SCORE_DOWNLOAD( study_analysis )
-    ch_versions = ch_versions.mix(SONG_SCORE_DOWNLOAD.out.versions)
+    //If local_mode is specified do not upload To RDPC
+    if (params.local_mode){
+      upRdpc_flag=false
+    } else {
+      //Otherwise only upload to RDPC is API_Token is present
+      if (params.api_token || params.api_upload_token){
+        upRdpc_flag=true
+      } else {
+        upRdpc_flag=false
+      }
+    }
 
-    PREP_SAMPLE ( SONG_SCORE_DOWNLOAD.out.analysis_files )
-    ch_versions = ch_versions.mix(PREP_SAMPLE.out.versions)
+    //Apply appropriate action if API_TOKEN is supplied
+    if (params.api_token || params.api_download_token){
+      //If IDs are present proceed with download otherwise exit
+      if (study_id && analysis_ids){
 
-    PREP_SAMPLE.out.sample_sheet_csv
+      Channel.from(analysis_ids.split(","))
+      .map{analysis_id -> tuple([study_id,analysis_id])}
+      .set{ch_study_analysis}
+
+      SONG_SCORE_DOWNLOAD( ch_study_analysis )
+      ch_versions = ch_versions.mix(SONG_SCORE_DOWNLOAD.out.versions)
+
+      PREP_SAMPLE ( SONG_SCORE_DOWNLOAD.out.analysis_files )
+      ch_versions = ch_versions.mix(PREP_SAMPLE.out.versions)
+
+      analysis_input = PREP_SAMPLE.out.sample_sheet_csv
+      } else {
+        exit 1, "Using using API_Token, both a study_id and analysis_ids must be specified."
+      }
+    } else {
+      //If no API_Token, check for local samplesheet
+      if (samplesheet){
+        CHECKINPUT(file(samplesheet,checkIfExists: true),workflow.Manifest.name)
+        ch_versions = ch_versions.mix(CHECKINPUT.out.versions)
+
+        analysis_input = CHECKINPUT.out.csv
+      } else {
+        exit 1, "When no API_TOKEN is provided, a local samplesheet must be provided."
+      }
+    }
+    //Collect meta,data files and analysis_json from new samplesheet.csv and handle approrpiately
+    analysis_input
     .collectFile(keepHeader: true, name: 'sample_sheet.csv')
     .splitCsv(header:true)
     .map{ row ->
-      if (row.analysis_type == "sequencing_experiment") {
+       if (row.analysis_type == "sequencing_experiment" && row.single_end.toLowerCase() == 'false') {
+         tuple([
+           analysis_type : row.analysis_type,
+           id:"${row.sample}-${row.lane}".toString(), 
+           study_id:row.study_id,
+           patient:row.patient,
+           sex:row.sex,
+           status:row.status.toInteger(),
+           sample:row.sample, 
+           read_group:row.read_group.toString(), 
+           data_type:'fastq', 
+           numLanes:row.read_group_count,
+           experiment:row.experiment,
+           single_end : row.single_end.toBoolean()
+           ], 
+           [file(row.fastq_1,checkIfExists: true), file(row.fastq_2,checkIfExists: true)],
+           row.analysis_json
+           )
+       } else if (row.analysis_type == "sequencing_experiment" && row.single_end.toLowerCase() == 'true') {
+         tuple([
+           analysis_type : row.analysis_type,
+           id:"${row.sample}-${row.lane}".toString(), 
+           study_id:row.study_id,
+           patient:row.patient,
+           sex:row.sex,
+           status:row.status.toInteger(),
+           sample:row.sample, 
+           read_group:row.read_group.toString(), 
+           data_type:'fastq', 
+           numLanes:row.read_group_count,
+           experiment:row.experiment,
+           single_end : row.single_end.toBoolean()
+           ], 
+           [file(row.fastq_1,checkIfExists: true)],
+           row.analysis_json
+           ) 
+      } else if (row.analysis_type == "sequencing_alignment") {
         tuple([
-          id:"${row.sample}-${row.lane}".toString(), 
-          study_id:row.study_id,
-          patient:row.patient,
-          sex:row.sex,
-          status:row.status.toInteger(),
-          sample:row.sample, 
-          read_group:row.read_group.toString(), 
-          data_type:'fastq', 
-          size:1, 
-          numLanes:row.read_group_count], 
-          [file(row.fastq_1), file(row.fastq_2)]) 
-      }
-      else if (row.analysis_type == "sequencing_alignment") {
-        tuple([
+          analysis_type : row.analysis_type,
           id:"${row.sample}".toString(),
           study_id:row.study_id,
           patient:row.patient,
           sample:row.sample,
           sex:row.sex,
-          status:row.status.toInteger(), 
-          data_type:'cram'], 
-          file(row.cram), file(row.crai))
+          status:row.status.toInteger(),
+          genome_build:row.genome_build,
+          experiment:row.experiment,
+          data_type: "${row.bam_cram}".replaceAll(/^.*\./,"").toLowerCase()], 
+          [file(row.bam_cram,checkIfExists: true), row.bai_crai],
+          row.analysis_json
+          )
       }
       else if (row.analysis_type == "variant_calling") {
         tuple([
-          id:"${row.sample}".toString(),
-          study_id:row.study_id, 
-          patient:row.patient,
-          sample:row.sample, 
-          variantcaller:row.variantcaller, 
-          data_type:'vcf'], file(row.vcf), file(row.tbi))
-      }
-      else if (row.analysis_type == "qc_metrics") {
-        tuple([
+          analysis_type : row.analysis_type,
           id:"${row.sample}".toString(),
           study_id:row.study_id, 
           patient:row.patient,
           sample:row.sample,
           sex:row.sex,
           status:row.status.toInteger(), 
-          qc_tools:row.qc_tools, 
-          data_type:'tgz'], file(row.qc_file))
+          variantcaller:row.variantcaller, 
+          genome_build:row.genome_build,
+          experiment:row.experiment,
+          data_type:'vcf'],
+          [file(row.vcf,checkIfExists: true), row.tbi],
+          row.analysis_json
+          )
+      }
+      else if (row.analysis_type == "qc_metrics") {
+        tuple([
+          analysis_type : row.analysis_type,
+          id:"${row.sample}".toString(),
+          study_id:row.study_id, 
+          patient:row.patient,
+          sample:row.sample,
+          sex:row.sex,
+          status:row.status.toInteger(), 
+          qc_tools:row.qc_tools,
+          genome_build:row.genome_build,
+          experiment:row.experiment,
+          data_type:'tgz'],
+          [file(row.qc_file,checkIfExists: true)],
+          row.analysis_json
+          )
       }
     }
-    .set { ch_input_sample }
+    .set {ch_input_sample}
 
-    PREP_SAMPLE.out.sample_sheet_csv
-    .collectFile(keepHeader: true)
-    .splitCsv(header:true)
-    .map{ row ->
-      if (row.analysis_type == "sequencing_experiment") {
-        tuple([
-          id:"${row.sample}-${row.lane}".toString(), 
-          study_id:row.study_id,
-          patient:row.patient,
-          sex:row.sex,
-          status:row.status.toInteger(),
-          sample:row.sample, 
-          read_group:row.read_group.toString(), 
-          data_type:'json', 
-          size:1, 
-          numLanes:row.read_group_count], 
-          file(row.analysis_json)) 
+    // ch_input_sample.view{"sample_sheet output: $it"}
+
+    //Reorganize files as flat tuple except "sequencing_experiment
+    ch_input_sample.map{ meta,files,analysis ->
+      if (meta.analysis_type == "sequencing_experiment"){
+        tuple([meta,files]) //tuple([meta,[read1,read2]])
+      } else if (meta.analysis_type == "sequencing_alignment") {
+        tuple([meta,files[0],files[1]])
+      } else if (meta.analysis_type == "variant_calling") {
+        tuple([meta,files[0],files[1]])
+      } else if (meta.analysis_type == "qc_metrics") {
+        tuple([meta,files[0]])
       }
-      else if (row.analysis_type == "sequencing_alignment") {
-        tuple([
-          id:"${row.sample}".toString(),
-          study_id:row.study_id,
-          patient:row.patient,
-          sample:row.sample,
-          sex:row.sex,
-          status:row.status.toInteger(), 
-          data_type:'json'], 
-          file(row.analysis_json))
-      }
-      else if (row.analysis_type == "variant_calling") {
-        tuple([
-          id:"${row.sample}".toString(),
-          study_id:row.study_id, 
-          patient:row.patient,
-          sample:row.sample, 
-          variantcaller:row.variantcaller, 
-          data_type:'json'], file(row.analysis_json))
-      }
-      else if (row.analysis_type == "qc_metrics") {
-        tuple([
-          id:"${row.sample}".toString(),
-          study_id:row.study_id, 
-          patient:row.patient,
-          sample:row.sample,
-          sex:row.sex,
-          status:row.status.toInteger(),  
-          qc_tools:row.qc_tools, 
-          data_type:'json'], file(row.analysis_json))
+    }.branch{ //identify files that require indexing
+      bam_to_index : it[0].analysis_type=='sequencing_alignment' && it[2].isEmpty() && it[0].data_type=='bam'
+        return tuple([it[0],it[1]])
+      cram_to_index : it[0].analysis_type=='sequencing_alignment' && it[2].isEmpty() && it[0].data_type=='cram'
+        return tuple([it[0],it[1]])
+      vcf_to_index : it[0].analysis_type=='variant_calling' && it[2].isEmpty()
+        return tuple([it[0],it[1]])
+      indexed : (it[0].analysis_type=='sequencing_alignment' && ! it[2].isEmpty()) | (it[0].analysis_type=='variant_calling' && ! it[2].isEmpty())
+        return tuple([it[0],it[1],it[2]])      
+      others: (it[0].analysis_type=='sequencing_experiment') | (it[0].analysis_type=='qc_metrics')
+        return tuple([it[0],it[1]])
+    }.set{ch_index_split}
+
+    // ch_index_split.bam_to_index.view{"ch_index_split output: $it"}
+
+    //Perform indexiing
+    BAM_INDEX(ch_index_split.bam_to_index)
+    CRAM_INDEX(ch_index_split.cram_to_index)
+    TABIX_TABIX(ch_index_split.vcf_to_index)
+
+    BAM_INDEX.out.bai.view{"BAM_index output: $it"}
+
+    //Combine BAM and BAI into single channel
+    ch_index_split.bam_to_index.join(BAM_INDEX.out.bai).set{indexed_bam}
+    indexed_bam.view{"indexed_bam output: $it"}
+    
+    //Combine CRAM and CRAI into single channel
+    ch_index_split.cram_to_index.join(CRAM_INDEX.out.crai).set{indexed_cram}
+
+    //Combine VCF and TBI into single channel
+    ch_index_split.vcf_to_index.join(TABIX_TABIX.out.tbi).set{indexed_vcf}
+
+    //Combine newly indexed files, previously indexed and others into single channel
+    Channel.empty()
+    .mix(indexed_bam)
+    .mix(indexed_cram)
+    .mix(indexed_vcf)
+    .mix(ch_index_split.indexed)
+    .mix(ch_index_split.others)
+    .set{ch_meta_files}
+
+
+    //We want to still have meta when analysis_json doesn't exist
+    ch_input_sample.map{ meta,files,analysis ->
+      if (analysis){
+        tuple([meta,file(analysis,checkIfExists: true)])
+      } else {
+        tuple([meta,null])
       }
     }
-    .set { ch_meta_analysis }
+    .unique{it[1]}
+    .set{ ch_meta_analysis }
 
     emit:
-    analysis_json = SONG_SCORE_DOWNLOAD.out.analysis_json  // channel: [ analysis_json ] 
-    meta_analysis = ch_meta_analysis         // channel: [ val(meta), analysis_json]
-    sample_files  = ch_input_sample          // channel: [ val(meta), [ files ] ]
-    input_files = SONG_SCORE_DOWNLOAD.out.files // channel: [files]
+    meta_analysis = ch_meta_analysis // channel: [ val(meta), analysis_json]
+    meta_files  = ch_meta_files      // channel: [ val(meta), [ files ] ]
+    upRdpc = upRdpc_flag // [boolean]
     
     versions = ch_versions                   // channel: [ versions.yml ]
 }

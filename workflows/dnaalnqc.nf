@@ -76,7 +76,7 @@ include { STAGE_INPUT as STAGE_INPUT_QC  } from '../subworkflows/icgc-argo-workf
 include { PAYLOAD_QCMETRICS              } from '../modules/icgc-argo-workflows/payload/qcmetrics/main'
 include { PREP_METRICS                   } from '../modules/icgc-argo-workflows/prep/metrics/main'
 include { SONG_SCORE_UPLOAD              } from '../subworkflows/icgc-argo-workflows/song_score_upload/main'
-
+include { CLEANUP                        } from '../modules/icgc-argo-workflows/cleanup/main'
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     IMPORT NF-CORE MODULES/SUBWORKFLOWS
@@ -101,46 +101,32 @@ workflow DNAALNQC {
     ch_versions = Channel.empty()
     ch_reports = Channel.empty()
 
-    // Read in samplesheet, validate and stage input files
-    if ( params.local_mode ) {
-      if (params.input) {
-        ch_input = Channel.fromPath(params.input)
-        ch_input_sample = INPUT_CHECK (ch_input).reads_index
-      } 
-      else { exit 1, 'Input samplesheet must be specified for local mode!' }
-    } else if (params.study_id && params.analysis_ids) {
-      ch_study = Channel.of(params.study_id)
-      ch_analysis_ids = Channel.fromList(params.analysis_ids.split(',') as List)
-      ch_input = ch_study.combine(ch_analysis_ids)
+    // Stage input files
+    STAGE_INPUT_ALN(params.study_id, params.analysis_ids, params.input)
+    ch_input_sample = STAGE_INPUT_ALN.out.meta_files
+    // ch_input_sample.view {"Subworkflow output: $it"}
+    ch_metadata = STAGE_INPUT_ALN.out.meta_analysis
+    ch_versions = ch_versions.mix(STAGE_INPUT_ALN.out.versions)
 
-      STAGE_INPUT_ALN(ch_input)
-      ch_input_sample = STAGE_INPUT_ALN.out.sample_files
-      ch_metadata = STAGE_INPUT_ALN.out.meta_analysis
-      ch_versions = ch_versions.mix(STAGE_INPUT_ALN.out.versions)
+    // don't enable this feature for now
+    // // pull qc metrics from other workflows if qc_analysis_ids are provided
+    // if (params.qc_analysis_ids) {
+    //   STAGE_INPUT_QC(params.study_id, params.qc_analysis_ids, '')
+    //   ch_input_qc_files = STAGE_INPUT_QC.out.meta_files
+      
+    //   ch_input_qc_files.branch {
+    //     duplicate_metrics: it[0].qc_tools.split(',').contains('biobambam2:bammarkduplicates2')
+    //   }.set{ch_qc_files}
+      
+    //   // untar the qc tgz file
+    //   UNTARFILES(ch_qc_files.duplicate_metrics)
 
-      // pull qc metrics from other workflows if qc_analysis_ids are provided
-      if (params.qc_analysis_ids) {
-        ch_qc_analysis_ids = Channel.fromList(params.qc_analysis_ids.split(',') as List)
-        ch_input_qc = ch_study.combine(ch_qc_analysis_ids)
-        // ch_input_qc = [params.study_id, params.qc_analysis_ids]
+    //   // Gather QC reports
+    //   ch_reports  = ch_reports.mix(UNTARFILES.out.files)
+    //   // Gather used softwares versions
+    //   ch_versions = ch_versions.mix(UNTARFILES.out.versions)
+    // }
 
-        STAGE_INPUT_QC(ch_input_qc)
-        ch_input_qc_files = STAGE_INPUT_QC.out.sample_files
-        
-        ch_input_qc_files.branch {
-          duplicate_metrics: it[0].qc_tools.split(',').contains('biobambam2:bammarkduplicates2')
-        }.set{ch_qc_files}
-        
-        // untar the qc tgz file
-        UNTARFILES(ch_qc_files.duplicate_metrics)
-
-        // Gather QC reports
-        ch_reports  = ch_reports.mix(UNTARFILES.out.files)
-        // Gather used softwares versions
-        ch_versions = ch_versions.mix(UNTARFILES.out.versions)
-
-      }
-    } else { exit 1, 'study_id & analysis_ids must be specified for rdpc mode!' }
   
     // Build intervals if needed
     PREPARE_INTERVALS(fasta_fai, intervals, params.no_intervals)
@@ -168,7 +154,7 @@ workflow DNAALNQC {
     }
 
     //
-    // MODULE: Run PICARD_COLLECTOXOGMETRICS
+    // MODULE: Run LOCAL MODULE PICARD_COLLECTOXOGMETRICS
     //
     PICARD_COLLECTOXOGMETRICS (
       ch_input_sample,
@@ -301,8 +287,9 @@ workflow DNAALNQC {
     ch_versions = ch_versions.mix(CRAM_QC_CALCONT_NORMAL_ONLY.out.versions)
 
     //
-    // SUBWORKFLOW: Run BAM_QC_PICARD including PICARD_COLLECTHSMETRICS (targeted), PICARD_COLLECTWGSMETRICS (WGS) and PICARD_COLLECTMULTIPLEMETRICS
-    // 
+    // LOCAL SUBWORKFLOW: Run BAM_QC_PICARD including PICARD_COLLECTHSMETRICS (targeted, nf-core module), 
+    // PICARD_COLLECTWGSMETRICS (WGS, local moduel) and PICARD_COLLECTMULTIPLEMETRICS (nf-core module)
+    // When update nf-core modules, ensure the local moduel is not accidentally updated.
     ch_bam_bai_bait_target = params.target ?
         ch_input_sample.combine(bait_interval).combine(target_interval) :
         ch_input_sample.map {meta, cram, crai -> [meta, cram, crai, [], []]}
@@ -323,7 +310,7 @@ workflow DNAALNQC {
     ch_versions = ch_versions.mix(BAM_QC_PICARD.out.versions)
 
     //
-    // MODULE: MultiQC
+    // NF-Core MODULE: MultiQC
     //
     ch_multiqc = Channel.empty()
     ch_multiqc = ch_multiqc.mix(ch_reports.collect{meta, report -> report}).ifEmpty([])
@@ -342,29 +329,55 @@ workflow DNAALNQC {
     // Group QC files by sampleId
     ch_reports
     .transpose()
-    .map { meta, files -> [[id: meta.id], files] }
+    .map { meta, files -> [[id: meta.id, study_id: meta.study_id], files] }
     .groupTuple()
     .set{ ch_meta_reports }
 
     // Parse the multiqc data & qc files
     PREP_METRICS (ch_meta_reports, MULTIQC_ALL.out.data.collect())
 
-    // upload QC files and metadata to song/score
-    if (!params.local_mode) {
-      //
-      // Match the QC files with the metadata info
-      //
-      ch_metadata.map { meta, metadata -> [[id: meta.id], metadata]}
-          .unique().set{ ch_meta_metadata }
-          
-      ch_meta_metadata.join(ch_meta_reports).join(PREP_METRICS.out.metrics_json)
-      .set { ch_metadata_upload }
+    // Combine channels to determine upload status and payload creation
+    // make metadata and files match  
+    STAGE_INPUT_ALN.out.meta_analysis.map { meta, metadata -> [[id: meta.sample, study_id: meta.study_id], metadata]}
+        .unique().set{ ch_meta_metadata }
+  
+    ch_meta_metadata.join(ch_meta_reports).join(PREP_METRICS.out.metrics_json)
+    .set { ch_metadata_files }
 
-      // generate payload
-      PAYLOAD_QCMETRICS(
-        ch_metadata_upload, CUSTOM_DUMPSOFTWAREVERSIONS.out.yml.collect()) 
+    STAGE_INPUT_ALN.out.upRdpc.combine(ch_metadata_files)
+    .map{upRdpc, meta, metadata, files, metrics -> 
+    [[id: meta.id, study_id: meta.study_id, upRdpc: upRdpc],
+      metadata, files, metrics]}
+    .branch{
+      upload: it[0].upRdpc
+    }.set{ch_metadata_files_status}
 
-      //SONG_SCORE_UPLOAD(PAYLOAD_QCMETRICS.out.payload_files)
+    // generate payload
+    PAYLOAD_QCMETRICS(
+        ch_metadata_files_status, CUSTOM_DUMPSOFTWAREVERSIONS.out.yml.collect()) 
+
+    SONG_SCORE_UPLOAD(PAYLOAD_QCMETRICS.out.payload_files)
+    
+
+    // cleanup the files if specified
+    if (params.cleanup) {
+      // Gather files to remove   
+      ch_files = Channel.empty()
+      ch_files = ch_files.mix(STAGE_INPUT_ALN.out.meta_files) 
+      ch_files.map{ meta, file1, file2 -> [file1, file2]}
+      .set { ch_files_to_remove1 }
+
+      PAYLOAD_QCMETRICS.out.payload_files
+      .map {meta, payload, files -> files}
+      .unique()
+      .set { ch_files_to_remove2 }
+
+      ch_files_to_remove = Channel.empty()
+      ch_files_to_remove = ch_files_to_remove.mix(MULTIQC_ALL.out.report)
+      ch_files_to_remove = ch_files_to_remove.mix(MULTIQC_ALL.out.data)
+      ch_files_to_remove = ch_files_to_remove.mix(ch_files_to_remove1)
+      ch_files_to_remove = ch_files_to_remove.mix(ch_files_to_remove2)
+      CLEANUP(ch_files_to_remove.unique().collect(), SONG_SCORE_UPLOAD.out.analysis_id)    
     }
 }
 
