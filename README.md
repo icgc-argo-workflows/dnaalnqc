@@ -55,23 +55,23 @@ Depending on where the input data are coming from and output data are sending to
 - Reference genome: 
   - GRCh38 reference genome fasta file. The file can be downloaded by:
     ```bash
-    wget https://swengbioinfo.blob.core.windows.net/genomics-public-data/reference-genome/GRCh38_hla_decoy_ebv/GRCh38_hla_decoy_ebv.fa
+    wget https://object.genomeinformatics.org/genomics-public-data/reference-genome/GRCh38_hla_decoy_ebv/GRCh38_hla_decoy_ebv.fa
     ``` 
 
   - GRCh38 reference genome fasta index file. The file can be downloaded by:
     ```bash
-    wget https://swengbioinfo.blob.core.windows.net/genomics-public-data/reference-genome/GRCh38_hla_decoy_ebv/GRCh38_hla_decoy_ebv.fa.fai
+    wget https://object.genomeinformatics.org/genomics-public-data/reference-genome/GRCh38_hla_decoy_ebv/GRCh38_hla_decoy_ebv.fa.fai
     ```
 
   - GRCh38 reference genome sequence dictionary file. The file can be downloaded by:
     ```bash
-    wget https://swengbioinfo.blob.core.windows.net/genomics-public-data/reference-genome/GRCh38_hla_decoy_ebv/GRCh38_hla_decoy_ebv.dict
+    wget https://object.genomeinformatics.org/genomics-public-data/reference-genome/GRCh38_hla_decoy_ebv/GRCh38_hla_decoy_ebv.dict
     ```
 - GATK resources: 
   - `germline_resource` and index files. The files can be downloaded by:
     ```bash
-    wget https://swengbioinfo.blob.core.windows.net/genomics-public-data/gatk-resources/af-only-gnomad.pass-only.biallelic.snp.hg38.vcf.gz
-    wget https://swengbioinfo.blob.core.windows.net/genomics-public-data/gatk-resources/af-only-gnomad.pass-only.biallelic.snp.hg38.vcf.gz.tbi
+    wget https://object.genomeinformatics.org/genomics-public-data/gatk-resources/af-only-gnomad.pass-only.biallelic.snp.hg38.vcf.gz
+    wget https://object.genomeinformatics.org/genomics-public-data/gatk-resources/af-only-gnomad.pass-only.biallelic.snp.hg38.vcf.gz.tbi
     ``` 
 - Autosome non-gap regions
   - `autosome_non_gap` bed file was downloaded from [NPM-sample-qc](https://raw.githubusercontent.com/c-BIG/NPM-sample-qc/master/resources/autosomes_non_gap_regions.bed) and staged under project folder [assets](https://github.com/icgc-argo-workflows/dnaalnqc/tree/main/assets)
