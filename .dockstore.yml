@@ -1,0 +1,21 @@
+# Dockstore config version, not pipeline version
+version: 1.2
+workflows:
+  - name: dnaalnqc
+    subclass: NFL
+    primaryDescriptorPath: /nextflow.config
+    publish: True
+    authors:
+      - name: Linda Xiang
+        email: lxiang@oicr.on.ca
+        orcid: 0000-0002-1377-1125
+      - name: Edmund Su
+        email: esu@oicr.on.ca
+        orcid: 0000-0003-3156-176X 
+    readMePath: /README.md
+    topic: icgc-argo-workflows/dnaalnqc is a reproducible bioinformatics workflow that can be used to obtain QC metrics from tumour/normal paired, tumour-only, normal-only WGS/WXS/Targeted-Seq aligned reads.
+    filters:
+      branches: 
+        - main
+      tags:
+        - /.*/
