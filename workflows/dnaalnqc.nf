@@ -242,10 +242,10 @@ workflow DNAALNQC {
         meta.patient    = normal[0]
         meta.sex        = normal[1].sex
         meta.tumour_id   = tumour[1].sample
-
+        meta.study_id   = normal[1].study_id
         tuple([ meta, [ normal[2], tumour[2] ], [ normal[3], tumour[3] ] ])
     }
-
+    
     CRAM_QC_CALCONT_PAIR (
       cram_pair,
       fasta.map{ it -> [ [ id:'fasta' ], it ] }, // Remap channel to match module/subworkflow
@@ -255,7 +255,7 @@ workflow DNAALNQC {
       germline_resource_tbi,
       intervals_and_num_intervals
     )
-
+    
     CRAM_QC_CALCONT_TUMOUR_ONLY (
       cram_tumor_only,
       fasta.map{ it -> [ [ id:'fasta' ], it ] }, // Remap channel to match module/subworkflow
@@ -319,7 +319,9 @@ workflow DNAALNQC {
         ch_multiqc.collect(),
         ch_multiqc_config.toList(),
         ch_multiqc_custom_config.toList(),
-        ch_multiqc_logo.toList()
+        ch_multiqc_logo.toList(),
+        [],
+        []
     )
     ch_versions = ch_versions.mix(MULTIQC_ALL.out.versions)
 
@@ -329,7 +331,7 @@ workflow DNAALNQC {
     // Group QC files by sampleId
     ch_reports
     .transpose()
-    .map { meta, files -> [[id: meta.id, study_id: meta.study_id], files] }
+    .map { meta, files -> [[id: meta.id, sample: meta.id, study_id: meta.study_id], files] }
     .groupTuple()
     .set{ ch_meta_reports }
 
@@ -338,23 +340,28 @@ workflow DNAALNQC {
 
     // Combine channels to determine upload status and payload creation
     // make metadata and files match  
-    STAGE_INPUT_ALN.out.meta_analysis.map { meta, metadata -> [[id: meta.sample, study_id: meta.study_id], metadata]}
-        .unique().set{ ch_meta_metadata }
+    STAGE_INPUT_ALN.out.meta_analysis.map { meta, metadata -> [[id: meta.sample, sample: meta.sample, study_id: meta.study_id], metadata]}
+        .unique().set{ ch_meta_metadata }  // [ [ id: meta.sample, sample: meta.sample, study_id: meta.study_id ], analysis_json ]
+
+    ch_meta_metadata.view { "Subworkflow output: $it" }
   
     ch_meta_metadata.join(ch_meta_reports).join(PREP_METRICS.out.metrics_json)
-    .set { ch_metadata_files }
+    .set { ch_metadata_files } // [ [ id: meta.sample, sample: meta.sample, study_id: meta.study_id ], analysis_json, [ report1, report2 ], metrics_json ]
 
-    STAGE_INPUT_ALN.out.upRdpc.combine(ch_metadata_files)
+    ch_metadata_files.view { "Subworkflow output: $it" }
+
+    STAGE_INPUT_ALN.out.upRdpc.combine(ch_metadata_files) // [ upRdpc, [ id: meta.sample, sample: meta.sample, study_id: meta.study_id ], analysis_json, [ report1, report2 ], metrics_json ]
     .map{upRdpc, meta, metadata, files, metrics -> 
     [[id: meta.id, study_id: meta.study_id, upRdpc: upRdpc],
-      metadata, files, metrics]}
+      files, metadata, metrics]} 
     .branch{
       upload: it[0].upRdpc
-    }.set{ch_metadata_files_status}
+    }.set{ch_metadata_files_status} 
+    ch_metadata_files_status.view { "Subworkflow output: $it" }
 
     // generate payload
     PAYLOAD_QCMETRICS(
-        ch_metadata_files_status, CUSTOM_DUMPSOFTWAREVERSIONS.out.yml.collect()) 
+        ch_metadata_files_status.upload, CUSTOM_DUMPSOFTWAREVERSIONS.out.yml.collect()) 
 
     SONG_SCORE_UPLOAD(PAYLOAD_QCMETRICS.out.payload_files)
     

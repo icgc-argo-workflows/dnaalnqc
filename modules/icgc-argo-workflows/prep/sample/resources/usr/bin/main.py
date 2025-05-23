@@ -268,6 +268,14 @@ def main():
     else:
       genome_build = None
 
+    library_strandedness = song_analysis['experiment'].get('library_strandedness')
+
+    # Transform 'library_strandedness' based on its value after dictionary creation
+    if library_strandedness == "FIRST_READ_SENSE_STRAND":
+      library_strandedness = "forward"
+    elif library_strandedness == "FIRST_READ_ANTISENSE_STRAND":
+      library_strandedness = "reverse"
+
     analysis_type = song_analysis['analysisType']['name']
     output_sample_sheet = f'{args.outdir}/{sample_id}_{analysis_type}_sample_sheet.csv'
     experiment=song_analysis['experiment']['experimental_strategy']
@@ -327,42 +335,42 @@ def main():
 
       with open(output_sample_sheet, 'w', newline='') as f:
         csvwriter = csv.writer(f, delimiter=',')
-        csvwriter.writerow(['analysis_type','study_id','patient','sex','status','sample','lane','fastq_1','fastq_2','read_group','single_end','read_group_count',"experiment", 'analysis_json'])
+        csvwriter.writerow(['analysis_type','study_id','patient','sex','status','sample','lane','fastq_1','fastq_2','read_group','single_end','read_group_count',"experiment", 'library_strandedness', 'analysis_json'])
         for k,v in sample_sheet.items():
           single_end = True if v['file_r2'] == 'No_File' else False
-          csvwriter.writerow([analysis_type, study_id, donor_id, sex, status, sample_id, k, v['file_r1'], v['file_r2'], v['read_group'], single_end, read_group_count,experiment, metadata_json])
+          csvwriter.writerow([analysis_type, study_id, donor_id, sex, status, sample_id, k, v['file_r1'], v['file_r2'], v['read_group'], single_end, read_group_count, experiment, library_strandedness, metadata_json])
     
     elif analysis_type == 'sequencing_alignment':
       for fp in args.input_files:
-        if fp.endswith('cram'): 
-          cram = os.path.join(os.getcwd(), args.outdir, os.path.basename(fp))
-          os.symlink(os.path.abspath(fp), cram)
-        elif fp.endswith('crai'):
-          crai = os.path.join(os.getcwd(), args.outdir, os.path.basename(fp))
-          os.symlink(os.path.abspath(fp), crai)
+        if fp.endswith('cram') or fp.endswith('bam'): 
+          bam_cram = os.path.join(os.getcwd(), args.outdir, os.path.basename(fp))
+          os.symlink(os.path.abspath(fp), bam_cram)
+        elif fp.endswith('crai') or fp.endswith('bai'):
+          bai_crai = os.path.join(os.getcwd(), args.outdir, os.path.basename(fp))
+          os.symlink(os.path.abspath(fp), bai_crai)
         else:
           sys.exit("Error: not supported input file format")
       with open(output_sample_sheet, 'w', newline='') as f:
         csvwriter = csv.writer(f, delimiter=',')
         csvwriter.writerow(['analysis_type','study_id','patient','sex','status','sample','bam_cram','bai_crai',"genome_build",'experiment', 'analysis_json'])
-        csvwriter.writerow([analysis_type, study_id, donor_id, sex, status, sample_id, cram, crai, genome_build,experiment, metadata_json])
+        csvwriter.writerow([analysis_type, study_id, donor_id, sex, status, sample_id, bam_cram, bai_crai, genome_build,experiment, metadata_json])
 
     elif analysis_type == 'variant_calling':
       for fp in song_analysis['files']:
          if not fp['fileType'] == 'VCF': continue
          variantcaller = fp['info']['analysis_tools'][0]
       for fp in args.input_files:
-        if fp.endswith('vcf.gz'): 
+        if fp.endswith('vcf.gz') or fp.endswith('bcf') or fp.endswith('vcf'): 
           vcf = os.path.join(os.getcwd(), args.outdir, os.path.basename(fp))
           os.symlink(os.path.abspath(fp), vcf)
-        elif fp.endswith('vcf.gz.tbi'):
+        elif fp.endswith('vcf.gz.tbi') or fp.endswith('vcf.gz.csi') or fp.endswith('bcf.tbi') or fp.endswith('bcf.csi') or fp.endswith('vcf.tbi')  or fp.endswith('vcf.csi'):
           tbi = os.path.join(os.getcwd(), args.outdir, os.path.basename(fp))
           os.symlink(os.path.abspath(fp), tbi)
         else:
           sys.exit("Error: not supported input file format")
       with open(output_sample_sheet, 'w', newline='') as f:
         csvwriter = csv.writer(f, delimiter=',')
-        csvwriter.writerow(['analysis_type','study_id','patient','sex','sample','variantcaller','vcf','tbi',"genome_build",'experiment', 'analysis_json'])
+        csvwriter.writerow(['analysis_type','study_id','patient','sex','sample','variantcaller','vcf','vcf_index',"genome_build",'experiment', 'analysis_json'])
         csvwriter.writerow([analysis_type, study_id, donor_id, sex, sample_id, variantcaller, vcf, tbi ,genome_build,experiment, metadata_json])  
 
     elif analysis_type == 'qc_metrics':
@@ -381,4 +389,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

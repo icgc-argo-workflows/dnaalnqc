@@ -32,13 +32,23 @@ process CHECKINPUT {
             $samplesheet \\
             samplesheet.valid.csv
         ;;
-    'DNA Alignment')
+    'DNA Seq Alignment')
         dnaaln.py \\
+            $samplesheet \\
+            samplesheet.valid.csv
+        ;;
+    'RNA Seq Alignment')
+        rnaaln.py \\
             $samplesheet \\
             samplesheet.valid.csv
         ;;
     'Germline Variant Call')
         germlinevar.py \\
+            $samplesheet \\
+            samplesheet.valid.csv
+        ;;
+    'Variant Call QC')
+        variantcallqc.py \\
             $samplesheet \\
             samplesheet.valid.csv
         ;;

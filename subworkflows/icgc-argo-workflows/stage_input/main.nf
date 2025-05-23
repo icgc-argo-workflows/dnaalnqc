@@ -63,7 +63,45 @@ workflow STAGE_INPUT {
     .collectFile(keepHeader: true, name: 'sample_sheet.csv')
     .splitCsv(header:true)
     .map{ row ->
-       if (row.analysis_type == "sequencing_experiment" && row.single_end.toLowerCase() == 'false') {
+       if (row.analysis_type == "sequencing_experiment" && row.single_end.toLowerCase() == 'false' && row.experiment == "RNA-Seq") {
+         tuple([
+           analysis_type : row.analysis_type,
+           id:"${row.sample}-${row.lane}".toString(), 
+           study_id:row.study_id,
+           patient:row.patient,
+           sex:row.sex,
+           status:row.status.toInteger(),
+           sample:row.sample, 
+           read_group:row.read_group.toString(), 
+           data_type:'fastq', 
+           numLanes:row.read_group_count,
+           experiment:row.experiment,
+           single_end : row.single_end.toBoolean(),
+           library_strandedness : row.library_strandedness
+           ], 
+           [file(row.fastq_1,checkIfExists: true), file(row.fastq_2,checkIfExists: true)],
+           row.analysis_json
+           )
+       } else if (row.analysis_type == "sequencing_experiment" && row.single_end.toLowerCase() == 'true' && row.experiment == "RNA-Seq") {
+         tuple([
+           analysis_type : row.analysis_type,
+           id:"${row.sample}-${row.lane}".toString(), 
+           study_id:row.study_id,
+           patient:row.patient,
+           sex:row.sex,
+           status:row.status.toInteger(),
+           sample:row.sample, 
+           read_group:row.read_group.toString(), 
+           data_type:'fastq', 
+           numLanes:row.read_group_count,
+           experiment:row.experiment,
+           single_end : row.single_end.toBoolean(),
+           library_strandedness : row.library_strandedness
+           ], 
+           [file(row.fastq_1,checkIfExists: true)],
+           row.analysis_json
+           )
+       } else if (row.analysis_type == "sequencing_experiment" && row.single_end.toLowerCase() == 'false') {
          tuple([
            analysis_type : row.analysis_type,
            id:"${row.sample}-${row.lane}".toString(), 
@@ -111,11 +149,11 @@ workflow STAGE_INPUT {
           genome_build:row.genome_build,
           experiment:row.experiment,
           data_type: "${row.bam_cram}".replaceAll(/^.*\./,"").toLowerCase()], 
-          [file(row.bam_cram,checkIfExists: true), row.bai_crai],
+          row.bai_crai ? [file(row.bam_cram,checkIfExists: true),file(row.bai_crai,checkIfExists: true)] : [file(row.bam_cram,checkIfExists: true)],
           row.analysis_json
           )
       }
-      else if (row.analysis_type == "variant_calling") {
+      else if (row.analysis_type == "variant_calling" ) {
         tuple([
           analysis_type : row.analysis_type,
           id:"${row.sample}".toString(),
@@ -123,12 +161,11 @@ workflow STAGE_INPUT {
           patient:row.patient,
           sample:row.sample,
           sex:row.sex,
-          status:row.status.toInteger(), 
           variantcaller:row.variantcaller, 
           genome_build:row.genome_build,
           experiment:row.experiment,
           data_type:'vcf'],
-          [file(row.vcf,checkIfExists: true), row.tbi],
+          row.vcf_index ? [file(row.vcf,checkIfExists: true),file(row.vcf_index,checkIfExists: true)] : [file(row.vcf,checkIfExists: true)],
           row.analysis_json
           )
       }
@@ -151,9 +188,7 @@ workflow STAGE_INPUT {
       }
     }
     .set {ch_input_sample}
-
-    // ch_input_sample.view{"sample_sheet output: $it"}
-
+    
     //Reorganize files as flat tuple except "sequencing_experiment
     ch_input_sample.map{ meta,files,analysis ->
       if (meta.analysis_type == "sequencing_experiment"){
@@ -161,41 +196,40 @@ workflow STAGE_INPUT {
       } else if (meta.analysis_type == "sequencing_alignment") {
         tuple([meta,files[0],files[1]])
       } else if (meta.analysis_type == "variant_calling") {
-        tuple([meta,files[0],files[1]])
+        tuple([meta,files])
       } else if (meta.analysis_type == "qc_metrics") {
         tuple([meta,files[0]])
       }
     }.branch{ //identify files that require indexing
-      bam_to_index : it[0].analysis_type=='sequencing_alignment' && it[2].isEmpty() && it[0].data_type=='bam'
+      bam_to_index : it[0].analysis_type=='sequencing_alignment' && it[1].size()!=2 && it[0].data_type=='bam'
         return tuple([it[0],it[1]])
-      cram_to_index : it[0].analysis_type=='sequencing_alignment' && it[2].isEmpty() && it[0].data_type=='cram'
+      cram_to_index : it[0].analysis_type=='sequencing_alignment' && it[1].size()!=2 && it[0].data_type=='cram'
         return tuple([it[0],it[1]])
-      vcf_to_index : it[0].analysis_type=='variant_calling' && it[2].isEmpty()
+      vcf_to_index : it[0].analysis_type=='variant_calling' && it[1].size()!=2
         return tuple([it[0],it[1]])
-      indexed : (it[0].analysis_type=='sequencing_alignment' && ! it[2].isEmpty()) | (it[0].analysis_type=='variant_calling' && ! it[2].isEmpty())
-        return tuple([it[0],it[1],it[2]])      
+      indexed : (it[0].analysis_type=='sequencing_alignment' && it[1].size()==2) | (it[0].analysis_type=='variant_calling' && it[1].size()==2)
+        return tuple([it[0],it[1][0],it[1][1]])     
       others: (it[0].analysis_type=='sequencing_experiment') | (it[0].analysis_type=='qc_metrics')
         return tuple([it[0],it[1]])
     }.set{ch_index_split}
-
-    // ch_index_split.bam_to_index.view{"ch_index_split output: $it"}
 
     //Perform indexiing
     BAM_INDEX(ch_index_split.bam_to_index)
     CRAM_INDEX(ch_index_split.cram_to_index)
     TABIX_TABIX(ch_index_split.vcf_to_index)
 
-    BAM_INDEX.out.bai.view{"BAM_index output: $it"}
 
     //Combine BAM and BAI into single channel
-    ch_index_split.bam_to_index.join(BAM_INDEX.out.bai).set{indexed_bam}
-    indexed_bam.view{"indexed_bam output: $it"}
-    
+    ch_index_split.bam_to_index.join(BAM_INDEX.out.bai) //[meta,bam,bai]
+    .set{indexed_bam}
+
     //Combine CRAM and CRAI into single channel
-    ch_index_split.cram_to_index.join(CRAM_INDEX.out.crai).set{indexed_cram}
+    ch_index_split.cram_to_index.join(CRAM_INDEX.out.crai) //[meta,cram,crai]
+    .set{indexed_cram}
 
     //Combine VCF and TBI into single channel
-    ch_index_split.vcf_to_index.join(TABIX_TABIX.out.tbi).set{indexed_vcf}
+    ch_index_split.vcf_to_index.join(TABIX_TABIX.out.tbi) //[meta,vcf,tbi]
+    .set{indexed_vcf}
 
     //Combine newly indexed files, previously indexed and others into single channel
     Channel.empty()

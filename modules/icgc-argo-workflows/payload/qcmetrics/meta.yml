@@ -20,6 +20,10 @@ input:
       type: file
       description: QC metrics files
 
+  - multiqc:
+      type: file
+      description: QC metrics in JSON format
+
   - metadata_analysis:
       type: file
       description: Song metadata in JSON format

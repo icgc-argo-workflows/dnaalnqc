@@ -80,12 +80,13 @@ Depending on where the input data are coming from and output data are sending to
 > Please stage the reference files into the reference directory <REFERENCE_BASE> with the following folder structure
 ```bash
 <REFERENCE_BASE>
+gatk-resource
+├── af-only-gnomad.pass-only.biallelic.snp.hg38.vcf.gz
+├── af-only-gnomad.pass-only.biallelic.snp.hg38.vcf.gz.tbi
+GRCh38_hla_decoy_ebv
 ├── GRCh38_hla_decoy_ebv.dict
 ├── GRCh38_hla_decoy_ebv.fa
 ├── GRCh38_hla_decoy_ebv.fa.fai
-├── gatk_resource
-│   ├── af-only-gnomad.pass-only.biallelic.snp.hg38.vcf.gz
-│   └── af-only-gnomad.pass-only.biallelic.snp.hg38.vcf.gz.tbi
 ```
 
 

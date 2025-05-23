@@ -1,5 +1,5 @@
 process PREP_METRICS {
-    tag "$meta.id"
+    tag "$meta.sample"
     label 'process_single'
 
     conda "conda-forge::python=3.8.3"
@@ -9,7 +9,7 @@ process PREP_METRICS {
 
     input:
     tuple val(meta), path(qc_files)
-    path multiqc
+    path multiqc // optional
 
     output:
     tuple val(meta), path('*.argo_metrics.json')   , emit: metrics_json
@@ -19,18 +19,44 @@ process PREP_METRICS {
     when:
     task.ext.when == null || task.ext.when
 
-    script: 
+    script:
+    def workflow_name = workflow.Manifest.name
     
-
+    
     """
-    main.py \\
-        -m $multiqc \\
-        -s $meta.id \\
-        -q $qc_files
+    case '$workflow_name' in
+    'Pre Alignment QC')
+        echo $workflow_name detected;
+        prealn.py \\
+            -m $multiqc \\
+            -s $meta.sample \\
+            -q $qc_files
+        ;;
+    'DNA Alignment QC')
+        dnaaln.py \\
+            -m $multiqc \\
+            -s $meta.sample \\
+            -q $qc_files
+        ;;
+    'RNA Seq Alignment')
+        rnaaln.py \\
+            -m $multiqc \\
+            -s $meta.sample
+        ;;
+    'Variant Call QC')
+        vcfqc.py \\
+            -q $qc_files \\
+            -s $meta.sample
+        ;;
+    *)
+        echo -n "Unknown workflow"
+        exit 1
+        ;;
+    esac
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
-        python: \$(python --version | sed 's/Python //g')
+        python: \$(python3 --version | sed 's/Python //g')
     END_VERSIONS
     """
 }
