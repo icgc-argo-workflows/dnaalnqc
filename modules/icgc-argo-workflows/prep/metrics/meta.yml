@@ -9,21 +9,20 @@ tools:
       licence: ["MIT"]
 
 input:  // input, make update as needed
-    tuple val(meta), path(qc_files)
-    path multiqc
+    tuple val(meta), path(multiqc)
+    path qc_files
 
   output:  // output, make update as needed
     tuple val(meta), path('*.json')   , emit: metrics_json
     path "versions.yml", emit: versions
 
 input:
+  - multiqc:
+      type: dictionary
+      description: dictionary for multiqc files
   - qc_files:
       type: file
       description: various qc files 
-  - multiqc:
-      type: file
-      description: multiqc files
-
 
 output:
   - metrics_json:

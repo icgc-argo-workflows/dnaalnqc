@@ -93,8 +93,8 @@ workflow CRAM_QC_GATK4_CONTAMINATION {
     emit:
     pileup_table_normal // channel: [ meta, table_normal ]
     pileup_table_tumour  // channel: [ meta, table_tumour ]
-    contamination_table    = CALCULATECONTAMINATION.out.contamination.map {meta, contamination -> [[id:meta.tumour_id], contamination]}    // channel: [ meta, contamination ]
-    segmentation_table     = CALCULATECONTAMINATION.out.segmentation.map {meta, segmentation -> [[id:meta.tumour_id], segmentation]}     // channel: [ meta, segmentation ]
+    contamination_table    = CALCULATECONTAMINATION.out.contamination.map {meta, contamination -> [[id:meta.tumour_id, study_id:meta.study_id], contamination]}    // channel: [ meta, contamination ]
+    segmentation_table     = CALCULATECONTAMINATION.out.segmentation.map {meta, segmentation -> [[id:meta.tumour_id, study_id:meta.study_id], segmentation]}     // channel: [ meta, segmentation ]
     // contamination_table_normal    = CALCULATECONTAMINATION_NORMAL.out.contamination.map {meta, contamination -> [[id:meta.normal_id], contamination]}    // channel: [ meta, contamination ]
     // segmentation_table_normal     = CALCULATECONTAMINATION_NORMAL.out.segmentation.map {meta, segmentation -> [[id:meta.normal_id], segmentation]}     // channel: [ meta, segmentation ]
     versions = ch_versions // channel: [ versions.yml ]

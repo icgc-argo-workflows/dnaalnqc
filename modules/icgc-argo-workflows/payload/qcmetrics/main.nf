@@ -10,30 +10,34 @@ process PAYLOAD_QCMETRICS {
         'quay.io/biocontainers/multiqc:1.13--pyhdfd78af_0' }"
 
     input:  // input, make update as needed
-      tuple val(meta), path(metadata_analysis), path(files_to_upload), path(multiqc)
-      path pipeline_yml
+        tuple val(meta), path(files_to_upload), path(metadata_analysis), path(multiqc)
+        path pipeline_yml
 
     output:  // output, make update as needed
-      tuple val(meta), path("*.payload.json"), path("out/*"), emit: payload_files
-      path "versions.yml", emit: versions
+        tuple val(meta), path("*.payload.json"), path("out/*"), emit: payload_files
+        path "versions.yml", emit: versions
 
     script:
       // add and initialize variables here as needed
-      def arg_pipeline_yml = pipeline_yml ? "-p $pipeline_yml" : ''
-      def arg_multiqc = multiqc ? "-m $multiqc" : ''
-      """
-      main.py \
+        def arg_pipeline_yml = pipeline_yml ? "-p $pipeline_yml" : ''
+        def arg_multiqc = multiqc ? "-m $multiqc" : ''
+        def arg_genome_build = meta.genome_build ? "-b \"${meta.genome_build}\"" : ''
+        def arg_genome_annotation = meta.genome_annotation ? "-n \"${meta.genome_annotation}\"" : ''
+        """
+        main.py \
         -f ${files_to_upload} \
         -a ${metadata_analysis} \
         -w "${workflow.manifest.name}" \
         -s ${workflow.sessionId} \
         -v ${workflow.manifest.version} \
+        $arg_genome_build \
+        $arg_genome_annotation \
         $arg_pipeline_yml \
         $arg_multiqc
 
-      cat <<-END_VERSIONS > versions.yml
-      "${task.process}":
-          python: \$(python --version | sed 's/Python //g')
-      END_VERSIONS
-      """
-  }
+        cat <<-END_VERSIONS > versions.yml
+        "${task.process}":
+            python: \$(python --version | sed 's/Python //g')
+        END_VERSIONS
+        """
+}

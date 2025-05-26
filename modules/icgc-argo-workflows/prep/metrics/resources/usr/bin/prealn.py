@@ -26,57 +26,18 @@ import json
 from glob import glob
 import csv
 
-ga4gh_wgs_qc_metrics = [
- 
-   'insert_size_std_deviation',
-   'mad_autosome_coverage',
-   'mean_autosome_coverage',
-   'mean_insert_size',
-   'pct_autosomes_15x',
-   'pct_reads_mapped',
-   'pct_reads_properly_paired',
-   'yield_bp_q30'
-  ]
-
 tool_fieldmap = {
   'fastqc': {},
-  'cutadapt': {},
-  'samtools_stats': {
-     'pct_reads_mapped': 'reads_mapped_percent',
-     'pct_reads_properly_paired': 'reads_properly_paired_percent',
-     'mean_insert_size': 'insert_size_average',
-     'insert_size_std_deviation': 'insert_size_standard_deviation',
-     'total_pf_reads': 'sequences',
-     'average_base_quality': 'average_quality',
-     'average_read_length': 'average_length',
-     'reads_duplicated_percent': 'reads_duplicated_percent',
-     'non-primary_alignments': 'non-primary_alignments',
-     'pairs_on_different_chromosomes': 'pairs_on_different_chromosomes',
-     'mismatch_bases_rate': 'error_rate'
-  },
-  'picard_wgsmetrics': {
-     'mean_autosome_coverage': 'MEAN_COVERAGE',
-     'pct_autosomes_15x': 'PCT_15X',
-     'mad_autosome_coverage': 'MAD_COVERAGE',
-     'median_autosome_coverage': 'MEDIAN_COVERAGE',
-     'pct_autosomes_10x': 'PCT_10X',
-     'pct_autosomes_30x': 'PCT_30X'
-  },
-  'picard_OxoGMetrics': {
-     'oxidation_q_CCG': 'OXIDATION_Q',
-     'oxidation_error_rate_CCG': 'OXIDATION_ERROR_RATE'
-  },
-  'picard_QualityYieldMetrics': {
-     'yield_bp_q30': 'PF_Q30_BASES'
-  }
+  'cutadapt': {}
 }
 
 fra2pct_fields = ['pct_autosomes_15x', 'pct_autosomes_10x', 'pct_autosomes_30x']
+integer_fields = ['r1_with_adapters_total', 'r2_with_adapters_total', 'r_with_adapters_total', 'total_sequences', 'sequences_flagged_as_poor_quality']
 
 def get_mqc_stats(multiqc, sampleId):
     mqc_stats = {
-       'sample_id': sampleId,
-       'metrics': {}
+      'sample_id': sampleId,
+      'metrics': {}
     }
     for f in sorted(glob(multiqc+'/*.txt')):
       for tool_metrics in tool_fieldmap.keys():
@@ -90,15 +51,7 @@ def get_mqc_stats(multiqc, sampleId):
               for ftype in tool_fieldmap.keys():
                 if not ftype == tool_metrics: continue
                 for f1,f2 in tool_fieldmap[ftype].items():
-                  mqc_stats['metrics'][f1] = round(float(row.get(f2)), 2)
-
-    # convert the fraction to percentage for given fields
-    for fn in fra2pct_fields:
-      if not mqc_stats['metrics'].get(fn): continue
-      new_value = round(float(mqc_stats['metrics'][fn]) * 100, 2)
-      mqc_stats['metrics'].update({
-        fn: new_value
-      })
+                  mqc_stats['metrics'][f1] = float(row.get(f2))
 
     # aggregate fastqc and cutadapt metrics into sample level based on multiqc data
     if mqc_stats.get('cutadapt'):
@@ -123,14 +76,14 @@ def get_mqc_stats(multiqc, sampleId):
 
       if r_processed_total > 0:
         mqc_stats['metrics'].update({
-          'r_with_adapters_total': round(r_with_adapters_total),
-          'percent_trimmed_total': round(r_trimmed_total / r_processed_total, 2)
+          'r_with_adapters_total': r_with_adapters_total,
+          'pct_trimmed_total': r_trimmed_total / r_processed_total
         })
       else:
         mqc_stats['metrics'].update({
-          'r1_with_adapters_total': round(r1_with_adapters_total),
-          'r2_with_adapters_total': round(r2_with_adapters_total),
-          'percent_trimmed_total': round(pairs_trimmed_total / pairs_processed_total, 2)
+          'r1_with_adapters_total': r1_with_adapters_total,
+          'r2_with_adapters_total': r2_with_adapters_total,
+          'pct_trimmed_total': pairs_trimmed_total / pairs_processed_total
         })
 
     if mqc_stats.get('fastqc'):
@@ -153,9 +106,9 @@ def get_mqc_stats(multiqc, sampleId):
       
       mqc_stats['metrics'].update(
         {
-          'total_sequences': round(sum(total_sequences)),
-          'sequences_flagged_as_poor_quality': round(sum(sequences_flagged_as_poor_quality)),
-          'percent_gc': round(sum(gc_content) / sum(total_sequences),2)
+          'total_sequences': sum(total_sequences),
+          'sequences_flagged_as_poor_quality': sum(sequences_flagged_as_poor_quality),
+          'pct_gc': sum(gc_content) / sum(total_sequences)
         }
       )
       
@@ -166,6 +119,22 @@ def get_mqc_stats(multiqc, sampleId):
               {fn: status}
             )
             break
+
+    # convert the fraction to percentage for given fields
+    for fn in fra2pct_fields:
+      if fn not in mqc_stats['metrics']: continue
+      new_value = float(mqc_stats['metrics'][fn]) * 100
+      mqc_stats['metrics'].update({
+        fn: new_value
+      })
+
+    # change type to integer for given fields
+    for fn in integer_fields:
+      if fn not in mqc_stats['metrics']: continue
+      new_value = int(mqc_stats['metrics'][fn])
+      mqc_stats['metrics'].update({
+        fn: new_value
+      })
 
     return mqc_stats
 
@@ -206,24 +175,8 @@ def main():
 
     mqc_stats_updated = {k: v for k, v in mqc_stats.items() if v}
 
-    with open("%s.argo_metrics.json" % (args.sampleId), 'w') as f:
+    with open("%s.prealn.argo_metrics.json" % (args.sampleId), 'w') as f:
       f.write(json.dumps(mqc_stats_updated, indent=2))
-
-    # retrieve ga4gh standardized QC metrics
-    ga4gh_qc_dict = {
-      'biosample': {
-            'id': args.sampleId
-         },
-      'wgs_qc_metrics': {}
-    }
-    for k,v in mqc_stats_updated.get('metrics', None).items():
-        if not k in ga4gh_wgs_qc_metrics: continue
-        ga4gh_qc_dict['wgs_qc_metrics'].update({k: v}) 
- 
-    if ga4gh_qc_dict['wgs_qc_metrics']:
-      with open("%s.metrics.json" % (args.sampleId), 'w') as f:
-        f.write(json.dumps(ga4gh_qc_dict, indent=2))
-
 
 if __name__ == "__main__":
     main()
