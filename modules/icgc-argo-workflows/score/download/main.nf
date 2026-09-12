@@ -2,15 +2,11 @@ process SCORE_DOWNLOAD {
     tag "${analysis_id}"
     label 'process_medium'
 
-    pod = [secret: workflow.runName + "-secret", mountPath: "/tmp/rdpc_secret"]
+    pod secret: workflow.runName + "-secret", mountPath: "/tmp/rdpc_secret"
 
     container "${ params.score_container ?: 'ghcr.io/overture-stack/score' }:${ params.score_container_version ?: '5.10.1' }"
 
-    if (workflow.containerEngine == "singularity") {
-        containerOptions "--bind \$(pwd):/score-client/logs"
-    } else if (workflow.containerEngine == "docker") {
-        containerOptions "-v \$(pwd):/score-client/logs"
-    }
+    containerOptions "${ workflow.containerEngine == 'singularity' ? '--bind \$(pwd):/score-client/logs' : workflow.containerEngine == 'docker' ? '-v \$(pwd):/score-client/logs' : '' }"
 
     input:
     tuple val(study_id), val(analysis_id), path(analysis)

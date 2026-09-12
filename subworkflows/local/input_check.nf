@@ -31,7 +31,7 @@ def create_input_channel(LinkedHashMap row) {
     meta.status = row.status ? row.status.toInteger() : 0
     meta.patient = row.patient ? row.patient : row.sample
     meta.sex = row.sex ? row.sex : 'NA'
-    reads_meta = [meta, file(row.bam_cram)]
+    def reads_meta = [meta, file(row.bam_cram)]
 
     return reads_meta
 }
