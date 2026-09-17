@@ -28,7 +28,7 @@ workflow CRAM_QC_GATK4_CONTAMINATION_TUMOUR_ONLY {
     // Combine input and intervals for spread and gather strategy
     input_intervals = input.combine(intervals)
     // Move num_intervals to meta map and reorganize channel for MUTECT2_PAIRED module
-    .map{ meta, input_list, input_index_list, intervals, num_intervals -> [ meta + [ num_intervals:num_intervals ], input_list, input_index_list, intervals ] }
+    .map{ meta, input_list, input_index_list, ivl, num_intervals -> [ meta + [ num_intervals:num_intervals ], input_list, input_index_list, ivl ] }
 
     // Generate pileup summary tables using getepileupsummaries. 
     GETPILEUPSUMMARIES(input_intervals, fasta, fai, dict, germline_resource_pileup, germline_resource_pileup_tbi)
@@ -44,7 +44,7 @@ workflow CRAM_QC_GATK4_CONTAMINATION_TUMOUR_ONLY {
     pileup_table_to_merge = pileup_table_branch.intervals.map{ meta, table -> [ groupKey(meta, meta.num_intervals), table ] }.groupTuple()
     
     // Merge Pileup Summaries
-    GATHERPILEUPSUMMARIES(pileup_table_to_merge, dict.map{ meta, dict ->  dict })
+    GATHERPILEUPSUMMARIES(pileup_table_to_merge, dict.map{ meta, dict_file ->  dict_file })
 
     // Mix intervals and no_intervals channels together
     pileup_table = Channel.empty().mix(GATHERPILEUPSUMMARIES.out.table, pileup_table_branch.no_intervals)

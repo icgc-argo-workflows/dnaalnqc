@@ -1,8 +1,7 @@
-name: picard_collectwgsmetrics
+name: picard_collectoxogmetrics
 channels:
   - conda-forge
   - bioconda
   - defaults
 dependencies:
   - bioconda::picard=3.3.0
-  - r::r-base

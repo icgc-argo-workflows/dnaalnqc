@@ -3,10 +3,7 @@ process CLEANUP {
     label 'process_low'
  
     conda "conda-forge::coreutils=9.1"
-    container "${ workflow.containerEngine == 'singularity' ? 'https://depot.galaxyproject.org/singularity/ubuntu:20.04' : 'docker.io/ubuntu:20.04'}"
-    //container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
-    //    'https://depot.galaxyproject.org/singularity/ubuntu:20.04' :
-    //    'ubuntu:20.04' }"
+    container "${ workflow.containerEngine == 'singularity' ? 'https://depot.galaxyproject.org/singularity/ubuntu:20.04' : 'nf-core/ubuntu:20.04'}"
 
     input:
     path files_to_delete  // more accurately, other non-hidden files in the same folder will be deleted as well
