@@ -67,20 +67,14 @@ workflow PREPARE_INTERVALS {
         // 1. Intervals file is split up into multiple bed files for scatter/gather & grouping together small intervals
         intervals_bed = intervals_bed.flatten()
             .map{ intervalFile ->
-                def duration = 0.0
+                def total_length = 0
                 intervalFile.readLines().each { line ->
                     def fields = line.split('\t')
-                    if (fields.size() >= 5) {
-                        duration += fields[4].toFloat()
-                    } else {
-                        def start = fields[1].toInteger()
-                        def end = fields[2].toInteger()
-                        duration += (end - start) / params.nucleotides_per_second
-                    }
+                    total_length += fields[2].toInteger() - fields[1].toInteger()
                 }
-                [ duration, intervalFile ]
+                [ total_length, intervalFile ]
             }.toSortedList({ a, b -> b[0] <=> a[0] })
-            .flatten().collate(2).map{ duration, intervalFile -> intervalFile }.collect()
+            .flatten().collate(2).map{ total_length, intervalFile -> intervalFile }.collect()
             // Adding number of intervals as elements
             .map{ it -> [ it, it.size() ] }
             .transpose()
