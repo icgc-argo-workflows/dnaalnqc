@@ -1,6 +1,7 @@
 *.code-workspace
 .nextflow*
 work/
+**/.conda-lock/
 data/
 output/
 results/

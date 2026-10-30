@@ -9,46 +9,10 @@
 // Validate input parameters
 // WorkflowDnaalnqc.initialise(params, log)
 
-/*
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    CONFIG FILES
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-*/
-
-ch_multiqc_config          = Channel.fromPath("$projectDir/assets/multiqc_config.yml", checkIfExists: true)
-ch_multiqc_custom_config   = params.multiqc_config ? Channel.fromPath( params.multiqc_config, checkIfExists: true ) : Channel.empty()
-ch_multiqc_logo            = params.multiqc_logo   ? Channel.fromPath( params.multiqc_logo, checkIfExists: true ) : Channel.empty()
-ch_multiqc_custom_methods_description = params.multiqc_methods_description ? file(params.multiqc_methods_description, checkIfExists: true) : file("$projectDir/assets/methods_description_template.yml", checkIfExists: true)
-
-/*
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    Check parameters
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-*/
-// Check input path parameters to see if they exist
-def checkPathParamList = [
-  params.input, params.fasta, params.fasta_fai, params.fasta_dict, params.bait_interval, params.target_interval,
-  params.germline_resource, params.germline_resource_tbi, params.verifybamid2_ud, params.verifybamid2_mu, params.verifybamid2_bed,
-  params.autosome_non_gap
-]
-
-for (param in checkPathParamList) if (param) file(param, checkIfExists: true)
-
-// Fails when no target_interval file is provided when target==true
-if (params.target && !params.target_interval) {
-  error("Please provide target_interval file for target-seq data.")
-}
-
-// Initialize all input file channels
-fasta       = Channel.fromPath(params.fasta).collect()
-fasta_fai   = Channel.fromPath(params.fasta_fai).collect()
-fasta_dict  = Channel.fromPath(params.fasta_dict).collect()
-target_interval  = params.target_interval   ? Channel.fromPath(params.target_interval).collect() : []
-bait_interval    = params.target_interval   ? params.bait_interval  ? Channel.fromPath(params.bait_interval).collect() : Channel.fromPath(params.target_interval).collect() : []
-germline_resource      = params.germline_resource  ? Channel.fromPath(params.germline_resource).collect() : Channel.value([])
-germline_resource_tbi  = params.germline_resource_tbi  ? Channel.fromPath(params.germline_resource_tbi).collect() : Channel.value([])
-verifybamid2_resource  = params.verifybamid2_ud ? Channel.fromPath([params.verifybamid2_ud, params.verifybamid2_mu, params.verifybamid2_bed]).collect() : [[], [], []]
-intervals    = params.target ? params.target_interval : params.autosome_non_gap
+// NOTE: config-file channel setup, path-param validation, and reference/interval channel
+// initialization used to live here at script top level. Nextflow's strict syntax (default
+// since 26.04) no longer allows imperative statements outside a workflow/process/function,
+// so this logic now lives at the top of the `workflow DNAALNQC { }` block below.
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -93,10 +57,38 @@ include { UNTARFILES                  } from '../modules/nf-core/untarfiles/main
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
-// Info required for completion email and summary
-def multiqc_report = []
-
 workflow DNAALNQC {
+
+    // -- CONFIG FILES --
+    ch_multiqc_config          = Channel.fromPath("$projectDir/assets/multiqc_config.yml", checkIfExists: true)
+    ch_multiqc_custom_config   = params.multiqc_config ? Channel.fromPath( params.multiqc_config, checkIfExists: true ) : Channel.empty()
+    ch_multiqc_logo            = params.multiqc_logo   ? Channel.fromPath( params.multiqc_logo, checkIfExists: true ) : Channel.empty()
+    ch_multiqc_custom_methods_description = params.multiqc_methods_description ? file(params.multiqc_methods_description, checkIfExists: true) : file("$projectDir/assets/methods_description_template.yml", checkIfExists: true)
+
+    // -- Check parameters --
+    // Check input path parameters to see if they exist
+    def checkPathParamList = [
+      params.input, params.fasta, params.fasta_fai, params.fasta_dict, params.bait_interval, params.target_interval,
+      params.germline_resource, params.germline_resource_tbi, params.verifybamid2_ud, params.verifybamid2_mu, params.verifybamid2_bed,
+      params.autosome_non_gap
+    ]
+    checkPathParamList.each { param -> if (param) { file(param, checkIfExists: true) } }
+
+    // Fails when no target_interval file is provided when target==true
+    if (params.target && !params.target_interval) {
+      error("Please provide target_interval file for target-seq data.")
+    }
+
+    // Initialize all input file channels
+    fasta       = Channel.fromPath(params.fasta).collect()
+    fasta_fai   = Channel.fromPath(params.fasta_fai).collect()
+    fasta_dict  = Channel.fromPath(params.fasta_dict).collect()
+    target_interval  = params.target_interval   ? Channel.fromPath(params.target_interval).collect() : []
+    bait_interval    = params.target_interval   ? params.bait_interval  ? Channel.fromPath(params.bait_interval).collect() : Channel.fromPath(params.target_interval).collect() : []
+    germline_resource      = params.germline_resource  ? Channel.fromPath(params.germline_resource).collect() : Channel.value([])
+    germline_resource_tbi  = params.germline_resource_tbi  ? Channel.fromPath(params.germline_resource_tbi).collect() : Channel.value([])
+    verifybamid2_resource  = params.verifybamid2_ud ? Channel.fromPath([params.verifybamid2_ud, params.verifybamid2_mu, params.verifybamid2_bed]).collect() : [[], [], []]
+    intervals    = params.target ? params.target_interval : params.autosome_non_gap
 
     ch_versions = Channel.empty()
     ch_reports = Channel.empty()
@@ -148,9 +140,9 @@ workflow DNAALNQC {
         else [ interval, num_intervals ]
     }
 
-    intervals_bed_gz_tbi_and_num_intervals = intervals_bed_gz_tbi.map{ intervals, num_intervals ->
+    intervals_bed_gz_tbi_and_num_intervals = intervals_bed_gz_tbi.map{ ivl, num_intervals ->
         if ( num_intervals < 1 ) [ [], [], num_intervals ]
-        else [ intervals[0], intervals[1], num_intervals ]
+        else [ ivl[0], ivl[1], num_intervals ]
     }
 
     //
@@ -343,12 +335,12 @@ workflow DNAALNQC {
     STAGE_INPUT_ALN.out.meta_analysis.map { meta, metadata -> [[id: meta.sample, sample: meta.sample, study_id: meta.study_id], metadata]}
         .unique().set{ ch_meta_metadata }  // [ [ id: meta.sample, sample: meta.sample, study_id: meta.study_id ], analysis_json ]
 
-    ch_meta_metadata.view { "Subworkflow output: $it" }
+    // ch_meta_metadata.view { "Subworkflow output: $it" }
   
     ch_meta_metadata.join(ch_meta_reports).join(PREP_METRICS.out.metrics_json)
     .set { ch_metadata_files } // [ [ id: meta.sample, sample: meta.sample, study_id: meta.study_id ], analysis_json, [ report1, report2 ], metrics_json ]
 
-    ch_metadata_files.view { "Subworkflow output: $it" }
+    // ch_metadata_files.view { "Subworkflow output: $it" }
 
     STAGE_INPUT_ALN.out.upRdpc.combine(ch_metadata_files) // [ upRdpc, [ id: meta.sample, sample: meta.sample, study_id: meta.study_id ], analysis_json, [ report1, report2 ], metrics_json ]
     .map{upRdpc, meta, metadata, files, metrics -> 

@@ -31,16 +31,16 @@ workflow CRAM_QC_GATK4_CONTAMINATION {
     // Combine input and intervals for spread and gather strategy
     input_intervals = input.combine(intervals)
     // Move num_intervals to meta map and reorganize channel for MUTECT2_PAIRED module
-    .map{ meta, input_list, input_index_list, intervals, num_intervals -> [ meta + [ num_intervals:num_intervals ], input_list, input_index_list, intervals ] }
+    .map{ meta, input_list, input_index_list, ivl, num_intervals -> [ meta + [ num_intervals:num_intervals ], input_list, input_index_list, ivl ] }
 
 
-    pileup = input_intervals.multiMap{  meta, input_list, input_index_list, intervals ->
-        tumour: [ meta, input_list[1], input_index_list[1], intervals ]
-        normal: [ meta, input_list[0], input_index_list[0], intervals ]
+    pileup = input_intervals.multiMap{  meta, input_list, input_index_list, ivl ->
+        tumour: [ meta, input_list[1], input_index_list[1], ivl ]
+        normal: [ meta, input_list[0], input_index_list[0], ivl ]
     }
 
-    pileup_normal = pileup.normal.map{ meta, cram, crai, intervals -> [ meta + [ id:meta.normal_id ], cram, crai, intervals ] }
-    pileup_tumour = pileup.tumour.map{ meta, cram, crai, intervals -> [ meta + [ id:meta.tumour_id ], cram, crai, intervals ] }
+    pileup_normal = pileup.normal.map{ meta, cram, crai, ivl -> [ meta + [ id:meta.normal_id ], cram, crai, ivl ] }
+    pileup_tumour = pileup.tumour.map{ meta, cram, crai, ivl -> [ meta + [ id:meta.tumour_id ], cram, crai, ivl ] }
 
     // Generate pileup summary tables using getepileupsummaries. tumour sample should always be passed in as the first input and input list entries of vcf_to_filter,
     GETPILEUPSUMMARIES_NORMAL(pileup_normal, fasta, fai, dict, germline_resource_pileup, germline_resource_pileup_tbi)
@@ -65,8 +65,8 @@ workflow CRAM_QC_GATK4_CONTAMINATION {
     pileup_table_tumour_to_merge = pileup_table_tumour_branch.intervals.map{ meta, table -> [ groupKey(meta, meta.num_intervals), table ] }.groupTuple()
 
     // Merge Pileup Summaries
-    GATHERPILEUPSUMMARIES_NORMAL(pileup_table_normal_to_merge, dict.map{ meta, dict ->  dict  })
-    GATHERPILEUPSUMMARIES_TUMOUR(pileup_table_tumour_to_merge, dict.map{ meta, dict ->  dict  })
+    GATHERPILEUPSUMMARIES_NORMAL(pileup_table_normal_to_merge, dict.map{ meta, dict_file ->  dict_file  })
+    GATHERPILEUPSUMMARIES_TUMOUR(pileup_table_tumour_to_merge, dict.map{ meta, dict_file ->  dict_file  })
 
     // remove no longer necessary field: normal_id, tumour_id, num_intervals
     pileup_table_normal = Channel.empty().mix(GATHERPILEUPSUMMARIES_NORMAL.out.table, pileup_table_normal_branch.no_intervals)

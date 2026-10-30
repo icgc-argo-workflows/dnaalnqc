@@ -68,12 +68,13 @@ workflow PREPARE_INTERVALS {
         intervals_bed = intervals_bed.flatten()
             .map{ intervalFile ->
                 def duration = 0.0
-                for (line in intervalFile.readLines()) {
-                    final fields = line.split('\t')
-                    if (fields.size() >= 5) duration += fields[4].toFloat()
-                    else {
-                        start = fields[1].toInteger()
-                        end = fields[2].toInteger()
+                intervalFile.readLines().each { line ->
+                    def fields = line.split('\t')
+                    if (fields.size() >= 5) {
+                        duration += fields[4].toFloat()
+                    } else {
+                        def start = fields[1].toInteger()
+                        def end = fields[2].toInteger()
                         duration += (end - start) / params.nucleotides_per_second
                     }
                 }

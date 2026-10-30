@@ -2,14 +2,10 @@ process SONG_PUBLISH {
     tag "${analysis_id}"
     label 'process_single'
 
-    pod = [secret: workflow.runName + "-secret", mountPath: "/tmp/rdpc_secret"]
+    pod secret: workflow.runName + "-secret", mountPath: "/tmp/rdpc_secret"
     container "${ params.song_container ?: 'ghcr.io/overture-stack/song-client' }:${ params.song_container_version ?: '5.0.2' }"
     
-    if (workflow.containerEngine == "singularity") {
-        containerOptions "--bind \$(pwd):/song-client/logs"
-    } else if (workflow.containerEngine == "docker") {
-        containerOptions "-v \$(pwd):/song-client/logs"
-    }
+    containerOptions "${ workflow.containerEngine == 'singularity' ? '--bind \$(pwd):/song-client/logs' : workflow.containerEngine == 'docker' ? '-v \$(pwd):/song-client/logs' : '' }"
 
     input:
     tuple val(meta), val(analysis_id)

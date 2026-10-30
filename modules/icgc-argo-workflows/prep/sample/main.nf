@@ -3,8 +3,8 @@ process PREP_SAMPLE {
   tag "${metadata_json.baseName}"
   label 'process_low'
 
-  container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
-        'https://depot.galaxyproject.org/singularity/python:3.8.3' :
+  container "${ workflow.containerEngine == 'singularity' ?
+        'docker://quay.io/icgc-argo/dna-seq-processing-tools:base-docker.0.2.1' :
         'quay.io/icgc-argo/dna-seq-processing-tools:base-docker.0.2.1' }"
 
   input:  // input, make update as needed

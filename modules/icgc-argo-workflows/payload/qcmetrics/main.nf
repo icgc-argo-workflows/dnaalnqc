@@ -4,10 +4,10 @@ process PAYLOAD_QCMETRICS {
     label 'process_single'
 
     // Requires `pyyaml` which does not have a dedicated container but is in the MultiQC container
-    conda "bioconda::multiqc=1.13"
+    conda "${moduleDir}/environment.yml"
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
-        'https://depot.galaxyproject.org/singularity/multiqc:1.13--pyhdfd78af_0' :
-        'quay.io/biocontainers/multiqc:1.13--pyhdfd78af_0' }"
+        'https://depot.galaxyproject.org/singularity/multiqc:1.28--pyhdfd78af_0' :
+        'biocontainers/multiqc:1.28--pyhdfd78af_0' }"
 
     input:  // input, make update as needed
         tuple val(meta), path(files_to_upload), path(metadata_analysis), path(multiqc)
