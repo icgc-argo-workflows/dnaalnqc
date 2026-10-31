@@ -7,6 +7,7 @@
 import argparse
 import csv
 import logging
+import re
 import sys
 from collections import Counter
 from pathlib import Path
@@ -164,7 +165,10 @@ analysis_type,study_id,patient,sex,status,sample,lane,fastq_1,fastq_2,read_group
         """Assert that expected crai is correct."""
         if not row[self._bai_crai_col].endswith(".crai") and not row[self._bai_crai_col].endswith(".bai"):
             raise AssertionError("'bai_crai' input format is incorrect, ensure file ends with '.crai' or '.bai'")
-        if row[self._bai_crai_col].split("/")[-1].replace(".cram.crai","").replace(".bam.bai","")!=row[self._bam_cram_col].split("/")[-1].replace(".cram","").replace(".bam",""):
+        # index may be named <name>.cram.crai / <name>.bam.bai or <name>.crai / <name>.bai
+        index_body = re.sub(r"(\.cram\.crai|\.bam\.bai|\.crai|\.bai)$", "", row[self._bai_crai_col].split("/")[-1])
+        bam_cram_body = re.sub(r"(\.cram|\.bam)$", "", row[self._bam_cram_col].split("/")[-1])
+        if index_body != bam_cram_body:
             raise AssertionError("'bam_cram' and 'bai_crai' file name bodies do not match.")
 
     def _validate_experiment(self, row):
